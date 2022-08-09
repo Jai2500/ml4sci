@@ -8,6 +8,7 @@ def train(args, num_epochs, model, criterion, optimizer, scheduler, train_loader
     best_model = copy.deepcopy(model).to("cpu", non_blocking=True)
     best_val_loss = float("inf")
     val_loss_avg_meter = AverageMeter()
+    val_mae_avg_meter = AverageMeter()
 
     metric = torch.nn.L1Loss()
 
@@ -63,6 +64,7 @@ def train(args, num_epochs, model, criterion, optimizer, scheduler, train_loader
         val_tqdm_iter = tqdm(val_loader, total=len(val_loader))
         val_tqdm_iter.set_description(f"Validation Epoch {epoch}")
         val_loss_avg_meter.reset()
+        val_mae_avg_meter.reset()
 
         for it, batch in enumerate(val_tqdm_iter):
             with torch.no_grad():
@@ -94,7 +96,9 @@ def train(args, num_epochs, model, criterion, optimizer, scheduler, train_loader
 
                 mae = metric(out, m.unsqueeze(-1))
 
-                val_tqdm_iter.set_postfix(loss=loss.item(), mae=mae.item())
+                val_loss_avg_meter.update(loss.item(), out.size(0))
+                val_mae_avg_meter.update(mae.item(), out.size(0))
+                val_tqdm_iter.set_postfix(loss=val_loss_avg_meter.avg, mae=val_mae_avg_meter.avg)
                 wandb.log(
                     {
                         "val_loss": loss.item(),
@@ -102,7 +106,6 @@ def train(args, num_epochs, model, criterion, optimizer, scheduler, train_loader
                         "val_step": (it * val_batch_size) + epoch * val_size,
                     }
                 )
-                val_loss_avg_meter.update(loss.item(), out.size(0))
 
         if val_loss_avg_meter.avg < best_val_loss:
             best_model = copy.deepcopy(model).to("cpu", non_blocking=True)
