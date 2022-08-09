@@ -1,5 +1,6 @@
 import torch
 import torchvision
+import timm
 
 class RegressModel(torch.nn.Module):
     def __init__(self, model, use_pe=False, pe_scales=0):
@@ -28,15 +29,23 @@ class RegressModel(torch.nn.Module):
         return self.out_lin(out)
 
 
-def get_model(device, pretrained=False, use_pe=False, pe_scales=0):
-    regress_model = RegressModel(
-        model=torchvision.models.resnet34(pretrained=pretrained),
-        use_pe=use_pe,
-        pe_scales=pe_scales
-    )
-    regress_model.model.conv1 = torch.nn.Conv2d(
-        8 if not use_pe else 8 * (pe_scales * 2 + 1), 64, kernel_size=7, stride=2, padding=3, bias=False
-    )
+def get_model(device, model, pretrained=False, use_pe=False, pe_scales=0):
+    if model == 'resnet':
+        regress_model = RegressModel(
+            model=torchvision.models.resnet34(pretrained=pretrained),
+            use_pe=use_pe,
+            pe_scales=pe_scales
+        )
+        regress_model.model.conv1 = torch.nn.Conv2d(
+            8 if not use_pe else 8 * (pe_scales * 2 + 1), 64, kernel_size=7, stride=2, padding=3, bias=False
+        )
+    else:
+        input_model = timm.create_model(model, pretrained=pretrained, in_chans=8 if not use_pe else 8 * (pe_scales * 2 + 1), img_size=125)
+        regress_model = RegressModel(
+            model=input_model,
+            use_pe=use_pe,
+            pe_scales=pe_scales
+        )
 
     regress_model = regress_model.to(device)
 
