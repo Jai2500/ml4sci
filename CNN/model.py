@@ -3,11 +3,11 @@ import torchvision
 import timm
 
 class RegressModel(torch.nn.Module):
-    def __init__(self, model, use_pe=False, pe_scales=0):
+    def __init__(self, model, in_features, use_pe=False, pe_scales=0):
         super().__init__()
         self.model = model
-        in_features = self.model.fc.in_features
-        self.model.fc = torch.nn.Identity()
+        # in_features = self.model.fc.in_features
+        # self.model.fc = torch.nn.Identity()
 
         self.out_lin = torch.nn.Sequential(
             torch.nn.Linear(in_features + 3 if not use_pe else in_features + 3 * (pe_scales * 2 + 1), in_features // 2, bias=True),
@@ -30,22 +30,19 @@ class RegressModel(torch.nn.Module):
 
 
 def get_model(device, model, pretrained=False, use_pe=False, pe_scales=0):
-    if model == 'resnet':
-        regress_model = RegressModel(
-            model=torchvision.models.resnet34(pretrained=pretrained),
-            use_pe=use_pe,
-            pe_scales=pe_scales
-        )
-        regress_model.model.conv1 = torch.nn.Conv2d(
-            8 if not use_pe else 8 * (pe_scales * 2 + 1), 64, kernel_size=7, stride=2, padding=3, bias=False
-        )
-    else:
-        input_model = timm.create_model(model, pretrained=pretrained, in_chans=8 if not use_pe else 8 * (pe_scales * 2 + 1), img_size=125)
-        regress_model = RegressModel(
-            model=input_model,
-            use_pe=use_pe,
-            pe_scales=pe_scales
-        )
+    input_model = timm.create_model(
+        model,
+        pretrained=pretrained,
+        features_only=True,
+        in_chans=8 if not use_pe else 8 * (pe_scales * 2 + 1),
+        img_size=125
+    )
+    regress_model = RegressModel(
+        model=input_model,
+        in_features=input_model.feature_info.channels()[-1],
+        use_pe=use_pe,
+        pe_scales=pe_scales
+    )
 
     regress_model = regress_model.to(device)
 
