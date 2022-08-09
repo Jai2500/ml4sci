@@ -46,7 +46,7 @@ def main(
             print("WARNING: CUDA is not available on the device. Falling back to CPU")
             device = 'cpu'
 
-    model = train(num_epochs, model, criterion, optimizer, scheduler,
+    model = train(args, num_epochs, model, criterion, optimizer, scheduler,
                   train_loader, args.train_batch_size, train_size,
                   val_loader, args.val_batch_size, val_size, device)
 

@@ -4,10 +4,12 @@ import wandb
 from tqdm.auto import tqdm
 import torch
 
-def train(num_epochs, model, criterion, optimizer, scheduler, train_loader, train_batch_size, train_size, val_loader, val_batch_size, val_size, device):
+def train(args, num_epochs, model, criterion, optimizer, scheduler, train_loader, train_batch_size, train_size, val_loader, val_batch_size, val_size, device):
     best_model = copy.deepcopy(model).to("cpu", non_blocking=True)
     best_val_loss = float("inf")
     val_loss_avg_meter = AverageMeter()
+
+    metric = torch.nn.L1Loss()
 
     for epoch in range(num_epochs):
         model.train()
@@ -35,10 +37,21 @@ def train(num_epochs, model, criterion, optimizer, scheduler, train_loader, trai
 
             loss = criterion(out, m.unsqueeze(-1))
 
-            tqdm_iter.set_postfix(loss=loss.item())
+            if args.output_norm_scaling:
+                m = m * args.output_norm_value
+                out = out * args.output_norm_value
+
+            if args.output_mean_scaling:
+                m = m + args.output_mean_value
+                out = out + args.output_mean_value
+
+            mae = metric(out.detach(), m.unsqueeze(-1))
+            
+            tqdm_iter.set_postfix(loss=loss.item(), mae=mae.item())
             wandb.log(
                 {
-                    "train_mse_loss": loss.item(),
+                    "train_loss": loss.item(),
+                    "train_mae": mae.item(),
                     "train_step": (it * train_batch_size) + epoch * train_size,
                 }
             )
@@ -71,10 +84,21 @@ def train(num_epochs, model, criterion, optimizer, scheduler, train_loader, trai
 
                 loss = criterion(out, m.unsqueeze(-1))
 
-                val_tqdm_iter.set_postfix(loss=loss.item())
+                if args.output_norm_scaling:
+                    m = m * args.output_norm_value
+                    out = out * args.output_norm_value
+
+                if args.output_mean_scaling:
+                    m = m + args.output_mean_value
+                    out = out + args.output_mean_value
+
+                mae = metric(out, m.unsqueeze(-1))
+
+                val_tqdm_iter.set_postfix(loss=loss.item(), mae=mae.item())
                 wandb.log(
                     {
-                        "val_mse_loss": loss.item(),
+                        "val_loss": loss.item(),
+                        "val_mae": mae.item(),
                         "val_step": (it * val_batch_size) + epoch * val_size,
                     }
                 )
