@@ -133,7 +133,9 @@ if __name__ == '__main__':
         use_zero_suppression=args.use_zero_suppression,
         min_threshold=args.min_threshold,
         output_mean_scaling=args.output_mean_scaling,
-        output_mean_value=args.output_mean_value
+        output_mean_value=args.output_mean_value,
+        output_norm_scaling=args.output_norm_scaling,
+        output_norm_value=args.output_norm_value
     )
 
     train_loader, val_loader, test_loader = get_loaders(

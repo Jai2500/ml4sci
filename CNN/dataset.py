@@ -18,7 +18,9 @@ class ImageDatasetFromParquet(torch.utils.data.Dataset):
         use_zero_supression=False,
         min_threshold=None,
         output_mean_scaling=False,
-        output_mean_value=None
+        output_mean_value=None,
+        output_norm_scaling=False,
+        output_norm_value=None,
     ) -> None:
         super().__init__()
 
@@ -31,6 +33,8 @@ class ImageDatasetFromParquet(torch.utils.data.Dataset):
         self.min_threshold = min_threshold
         self.output_mean_scaling = output_mean_scaling
         self.output_mean_value = output_mean_value
+        self.output_norm_scaling = output_norm_scaling
+        self.output_norm_value = output_norm_value
 
     def __getitem__(
         self,
@@ -56,6 +60,9 @@ class ImageDatasetFromParquet(torch.utils.data.Dataset):
         if self.output_mean_scaling:
             to_return['m'] = to_return['m'] - self.output_mean_value
 
+        if self.output_norm_scaling:
+            to_return['m'] = to_return['m'] / self.output_norm_value
+
         return to_return
 
     def __len__(self):
@@ -73,7 +80,9 @@ def get_datasets(
     use_zero_suppression=False,
     min_threshold=0.,
     output_mean_scaling=False,
-    output_mean_value=0
+    output_mean_value=0,
+    output_norm_scaling=False,
+    output_norm_value=1.,
 ):
     paths = list(glob.glob(os.path.join(root_dir, "*.parquet")))
 
@@ -85,7 +94,8 @@ def get_datasets(
                 transforms=required_transform,
                 use_pe=use_pe, pe_scales=pe_scales,
                 use_zero_supression=use_zero_suppression, min_threshold=min_threshold,
-                output_mean_scaling=output_mean_scaling, output_mean_value=output_mean_value
+                output_mean_scaling=output_mean_scaling, output_mean_value=output_mean_value,
+                output_norm_scaling=output_norm_scaling, output_norm_value=output_norm_value
             )
         )
 
