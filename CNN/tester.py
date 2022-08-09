@@ -1,7 +1,8 @@
 from tqdm.auto import tqdm
 from train_utils import AverageMeter
+import torch
 
-def test(model, test_loader, criterion, device):
+def test(model, test_loader, criterion, device, output_norm_scaling=False, output_norm_value=1.):
     model.eval()
     test_loss_avg_meter = AverageMeter()
     tqdm_iter = tqdm(test_loader, total=len(test_loader))
@@ -26,6 +27,10 @@ def test(model, test_loader, criterion, device):
             m = m.to(device, non_blocking=True)
 
             out = model(X, pt, ieta, iphi)
+
+            if output_norm_scaling:
+                out *= output_norm_value
+                m *= output_norm_value
 
             loss = criterion(out, m.unsqueeze(-1))
 

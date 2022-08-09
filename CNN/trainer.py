@@ -2,6 +2,7 @@ import copy
 from train_utils import AverageMeter
 import wandb
 from tqdm.auto import tqdm
+import torch
 
 def train(num_epochs, model, criterion, optimizer, scheduler, train_loader, train_batch_size, train_size, val_loader, val_batch_size, val_size, device):
     best_model = copy.deepcopy(model).to("cpu", non_blocking=True)

@@ -37,9 +37,9 @@ def main(
 
     save_path
 ):
-    wandb.init(name=run_name, project="gsoc-cnn-runs")
-
-    wandb.config.update(args)
+    if not args.debug:
+        wandb.init(name=run_name, project="gsoc-cnn-runs")
+        wandb.config.update(args)
 
     if device == 'cuda':
         if not torch.cuda.is_available():
@@ -50,13 +50,16 @@ def main(
                   train_loader, args.train_batch_size, train_size,
                   val_loader, args.val_batch_size, val_size, device)
 
-    test_error = test(model, test_loader, test_metric, device)
+    test_error = test(model, test_loader, test_metric, device, output_norm_scaling=args.output_norm_scaling,
+                      output_norm_value=args.output_norm_value)
     print(f"Model on Test dataset - Error: {test_error}")
-    wandb.log({
-        "test_error": test_error
-    })
 
-    wandb.finish()
+    if not args.debug:
+        wandb.log({
+            "test_error": test_error
+        })
+
+        wandb.finish()
 
     save_model(model, save_path)
 
@@ -110,7 +113,12 @@ if __name__ == '__main__':
     parser.add_argument('--output_mean_scaling', action='store_true',
                         help='Whether to perform mean scaling on the output')
     parser.add_argument('--output_mean_value', type=float,
-                        default=294, help='The mean to subtract from the mean')
+                        default=293.2899, help='The mean to subtract from the mean')
+    parser.add_argument('--output_norm_scaling', action='store_true',
+                        help='Whether to divide the output by normalizing constant')
+    parser.add_argument('--output_norm_value', type=float, default=119.904,
+                        help='The the normalizing constant to divide the output by')
+    parser.add_argument('--debug', action='store_true')
     args = parser.parse_args()
 
     dset_transforms = get_transforms()
