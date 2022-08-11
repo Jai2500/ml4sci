@@ -11,7 +11,7 @@ import os
 
 
 def save_model(model, save_path):
-    os.makedirs(save_path, exists_ok=True)
+    os.makedirs(save_path, exist_ok=True)
     torch.save(model.state_dict(), os.path.join(save_path, "model.pth"))
 
 
