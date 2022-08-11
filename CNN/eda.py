@@ -23,12 +23,13 @@ rel_count = 0
 
 pbar = tqdm(loader, total=len(loader))
 for data in pbar:
+    counts = torch.count_nonzero(data['X_jets'], dim=[0, 2, 3])
     avg_meter.update(
-        data['X_jets'].mean(dim=[0, 2, 3]),
+        data['X_jets'].sum(dim=[0, 2, 3]) / counts,
         n=data['m'].shape[0]
     )
     sq_avg_meter.update(
-        (data['X_jets'] ** 2).mean(dim=[0,2,3]),
+        (data['X_jets'] ** 2).sum(dim=[0,2,3]) / counts,
         n=data['m'].shape[0]
     )
 

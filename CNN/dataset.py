@@ -43,12 +43,12 @@ class ImageDatasetFromParquet(torch.utils.data.Dataset):
         row = self.file.read_row_group(idx).to_pydict()
         to_return = {
             "X_jets":
-                self.transforms(np.array(row["X_jet"][0]).reshape(125, 125, 8)) if not self.use_zero_suppression
-                else self.transforms(zero_suppression(np.array(row["X_jet"][0]).reshape(125, 125, 8), self.min_threshold)),
+                self.transforms(np.array(row["X_jet"][0]).reshape(125, 125, 8)).float() if not self.use_zero_suppression
+                else self.transforms(zero_suppression(np.array(row["X_jet"][0]).reshape(125, 125, 8), self.min_threshold)).float(),
             "m": row["m"][0],
-            "pt": torch.as_tensor(row["pt"][0]).unsqueeze(-1),
-            "ieta": torch.as_tensor(row["ieta"][0]).unsqueeze(-1),
-            "iphi": torch.as_tensor(row["iphi"][0]).unsqueeze(-1),
+            "pt": torch.as_tensor(row["pt"][0], dtype=torch.float).unsqueeze(-1),
+            "ieta": torch.as_tensor(row["ieta"][0], dtype=torch.float).unsqueeze(-1),
+            "iphi": torch.as_tensor(row["iphi"][0], dtype=torch.float).unsqueeze(-1),
         }
 
         if self.use_pe:
@@ -110,7 +110,7 @@ def get_datasets(
         [train_size, val_size, test_size],
         generator=torch.Generator().manual_seed(42),
     )
-    test_dset.required_transforms = [T.Normalize(mean=[0.01037084, 0.0103173, 0.01052679, 0.01034378, 0.01097225, 0.01024814, 0.01037642, 0.01058754],
-                                                 std=[10.278656283775618, 7.64753320751208, 16.912319597559645, 9.005579923580713, 21.367327333103688, 7.489890622699373, 12.977402491253788, 24.50774893130742])]
+    # test_dset.required_transforms = [T.Normalize(mean=[0.01037084, 0.0103173, 0.01052679, 0.01034378, 0.01097225, 0.01024814, 0.01037642, 0.01058754],
+    #                                              std=[10.278656283775618, 7.64753320751208, 16.912319597559645, 9.005579923580713, 21.367327333103688, 7.489890622699373, 12.977402491253788, 24.50774893130742])]
 
     return train_dset, val_dset, test_dset, train_size, val_size, test_size

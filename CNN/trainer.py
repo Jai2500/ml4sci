@@ -21,11 +21,11 @@ def train(args, num_epochs, model, criterion, optimizer, scheduler, train_loader
             optimizer.zero_grad()
 
             X, pt, ieta, iphi, m = (
-                batch["X_jets"].float(),
-                batch["pt"].float(),
-                batch["ieta"].float(),
-                batch["iphi"].float(),
-                batch["m"].float(),
+                batch["X_jets"],
+                batch["pt"],
+                batch["ieta"],
+                batch["iphi"],
+                batch["m"],
             )
 
             X = X.to(device, non_blocking=True)
@@ -69,11 +69,11 @@ def train(args, num_epochs, model, criterion, optimizer, scheduler, train_loader
         for it, batch in enumerate(val_tqdm_iter):
             with torch.no_grad():
                 X, pt, ieta, iphi, m = (
-                    batch["X_jets"].float(),
-                    batch["pt"].float(),
-                    batch["ieta"].float(),
-                    batch["iphi"].float(),
-                    batch["m"].float(),
+                    batch["X_jets"],
+                    batch["pt"],
+                    batch["ieta"],
+                    batch["iphi"],
+                    batch["m"],
                 )
 
                 X = X.to(device, non_blocking=True)
