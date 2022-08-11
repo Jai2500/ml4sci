@@ -24,7 +24,7 @@ class RegressModel(torch.nn.Module):
         )
 
     def forward(self, X, pt, ieta, iphi):
-        out = self.model(X)[0]
+        out = self.model(X)
         out = torch.cat(
             [out, pt, ieta, iphi], dim=1
         )
