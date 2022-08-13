@@ -2,6 +2,9 @@ import torch_geometric
 import torch
 
 class MLPStack(torch.nn.Module):
+    '''
+        A simple MLP stack that stacks multiple linear-bn-act layers
+    '''
     def __init__(self, layers, bn=True, act=True):
         super().__init__()
         assert len(layers) > 1, "At least input and output channels must be provided"
@@ -24,6 +27,9 @@ class MLPStack(torch.nn.Module):
         return self.mlp_stack(x)
 
 class DynamicEdgeConvPN(torch.nn.Module):
+    '''
+        Internal convolution DynamicEdgeConv block inspired from ParticleNet
+    '''
     def __init__(self, edge_nn, nn, k=7, aggr='max', flow='source_to_target') -> None:
         super().__init__()
         self.nn = nn
@@ -42,6 +48,9 @@ class DynamicEdgeConvPN(torch.nn.Module):
 
 
 class DGCNN(torch.nn.Module):
+    '''
+        DGCNN network that is similar to the ParticleNet architecture
+    '''
     def __init__(self, k=7):
         super().__init__()
         self.dynamic_conv_1 = DynamicEdgeConvPN(
@@ -81,6 +90,9 @@ class DGCNN(torch.nn.Module):
         return x_out
 
 class SimpleGAT(torch.nn.Module):
+    '''
+        Simple 2 layered GAT GNN
+    '''
     def __init__(self, k=7, use_pe=False, pe_scales=0):
         super().__init__()
         self.k = k
@@ -115,7 +127,19 @@ class SimpleGAT(torch.nn.Module):
 
 
 class RegressModel(torch.nn.Module):
+    '''
+        Model to perform the regression on the data. 
+        Builds a small MLP network on a provided backbone network.
+    '''
     def __init__(self, model, in_features, use_pe=False, pe_scales=0):
+        '''
+            Init fn. of the RegressModel.
+            Args:
+                model: The backbone model to operate on the images
+                in_features: The size of the output of the backbone
+                use_pe: Whether positional encoding is being used
+                pe_scales: The scales of the positional encoding
+        '''
         super().__init__()
         self.model = model
 
@@ -140,6 +164,18 @@ class RegressModel(torch.nn.Module):
 
 
 def get_model(device, model, pretrained=False, use_pe=False, pe_scales=0):
+    '''
+        Returns the model based on the arguments
+        Args:
+            device: The device to run the model on
+            model: The backbone model choice
+            pretrained: Whether to use the pretrained backbone
+            use_pe: Whether positional encoding is being used
+            pe_scales: The scale of the positional encoding
+
+        Returns:
+            regress_model: Model that is used to perform regression
+    '''
     input_model = DGCNN() if model == 'dgcnn' else SimpleGAT(use_pe=use_pe, pe_scales=pe_scales)
     regress_model = RegressModel(
         model=input_model,

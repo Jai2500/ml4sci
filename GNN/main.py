@@ -11,6 +11,15 @@ import os
 
 
 def save_model(model, save_path):
+    '''
+        Saves the model to the path provided.
+        Args:
+            model: The model weights to be saved
+            save_path: The root dir path to save the model in
+        
+        Returns:
+            None
+    '''
     os.makedirs(save_path, exist_ok=True)
     torch.save(model.state_dict(), os.path.join(save_path, "model.pth"))
 
@@ -37,6 +46,29 @@ def main(
 
     save_path
 ):
+    ''''
+        Runs the training and testing of the model given the arguments and the configurations.
+        Args:
+            args: The Argparse parsed arguments
+            run_name: The name to log the run on WandB
+            num_epochs: The number of epochs to run the training for
+            model: The model to train
+            criterion: The criterion to use for training and validation
+            test_metric: The metric for evaluating the test results
+            optimizer: The optimizer of the model
+            scheduler: The epoch based scheduler for the optimizer
+            train_loader: The train dataset data loader
+            val_loader: The validation dataset data loader
+            test_loader: The test dataset data loader
+            train_size: The size of the training dataset
+            val_size: The size of the validation dataset
+            test_size: The size of the test dataset
+            device: The device to run the training on
+            save_path: Path on the disk to the folder where to save the best model
+
+        Returns:
+            The best model
+    '''
     if not args.debug:
         wandb.init(name=run_name, project="gsoc-cnn-runs")
         wandb.config.update(args)

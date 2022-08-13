@@ -3,6 +3,20 @@ from train_utils import AverageMeter
 import torch
 
 def test(model, test_loader, criterion, device, output_norm_scaling=False, output_norm_value=1.):
+    '''
+        Performs testing of the model on the test dataset
+        Args:
+            model: The model to test on the test dataset
+            test_loader: The test dataset data loader
+            criterion: The criterion to test the model on
+            device: The device on which to perform the testing
+            output_norm_scaling[Optional]: Whether the outputs have been normalized
+            output_norm_value[Optional]: The amount by which the outputs have been normalized
+
+
+        Returns:
+            Average loss on the test dataset. 
+    '''
     model.eval()
     test_loss_avg_meter = AverageMeter()
     tqdm_iter = tqdm(test_loader, total=len(test_loader))

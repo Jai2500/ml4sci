@@ -5,6 +5,27 @@ from tqdm.auto import tqdm
 import torch
 
 def train(args, num_epochs, model, criterion, optimizer, scheduler, train_loader, train_batch_size, train_size, val_loader, val_batch_size, val_size, device):
+    '''
+        Performs the training of the model, logs the results on Wandb and returns the best model.
+        Args:
+            args: The Argparse parsed arguments
+            num_epochs: The number of epochs to train the model for
+            model: The input model to train
+            criterion: The criterion to generate the losses for the model
+            optimizer: The optimizer for the model
+            scheduler: The epoch-based scheduler for the model
+            train_loader: The training dataset data loader
+            train_batch_size: The batch size of the train loader
+            train_size: The total size of the training dataset
+            val_loader: The validation dataset data loader
+            val_batch_size: The batch size of the val loader
+            val_size: The total size of the validation dataset
+            device: The device to run the training on
+
+
+        Returns:
+            best_model: The model with the best validation loss 
+    '''
     best_model = copy.deepcopy(model).to("cpu", non_blocking=True)
     best_val_loss = float("inf")
     val_loss_avg_meter = AverageMeter()

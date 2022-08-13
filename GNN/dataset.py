@@ -8,6 +8,11 @@ from tqdm.auto import tqdm
 from dataset_utils import normalize_x, positional_encoding
 
 class PointCloudFromParquetDataset(torch.utils.data.Dataset):
+    '''
+        Dataset to extract Point Cloud from the Parquet File. This does not load
+        the entire Parquet Dataset on memory but reads from it every time
+        an image is queried.
+    '''
     def __init__(
         self,
         filename,
@@ -19,6 +24,21 @@ class PointCloudFromParquetDataset(torch.utils.data.Dataset):
         output_norm_scaling=False,
         output_norm_value=None
     ) -> None:
+        '''
+            Init fn. of the dataset
+            Args:
+                filename: The path to the parquet file
+                suppression_thresh: The minimum threshold for converting to point cloud 
+                use_pe: Whether to use sin/cos positional encoding on the features
+                pe_scales: The scales for the positional encoding
+                output_mean_scaling: Whether to subtract the ground truth with a mean value
+                output_mean_value: The mean value to subtract the ground truth with
+                output_norm_scaling: Whether to scale the ground truth with a norm value
+                output_norm_value: The norm value to scale the ground truth with
+
+            Returns:
+                None
+        '''
         super().__init__()
 
         self.file = pq.ParquetFile(filename)
@@ -32,6 +52,10 @@ class PointCloudFromParquetDataset(torch.utils.data.Dataset):
         self.output_norm_value = output_norm_value
 
     def __getitem__(self, idx, ):
+        '''
+            __getitem__ function of a Pytorch dataset. 
+            Returns the traning element. 
+        '''
         row = self.file.read_row_group(idx).to_pydict()
         
         arr = np.array(row['X_jet'][0])
@@ -74,7 +98,6 @@ def get_datasets(
     num_files,
     test_ratio,
     val_ratio,
-    required_transform=None,
     use_pe=False,
     pe_scales=0,
     min_threshold=0.,
@@ -83,6 +106,29 @@ def get_datasets(
     output_norm_scaling=False,
     output_norm_value=1.,
 ):
+    '''
+        Returns the datasets provided the root directory of the multiple parquet files.
+        Args:
+            root_dir: The root directory containing all the parquet files
+            num_files: The number of files to be read
+            test_ratio: The ratio of the dataset to be used as the test dataset
+            val_ratio: The ratio of the dataset to be used as the validation dataset
+            use_pe: Whether to use sin/cos positional encoding
+            pe_scales: The scales for the positional encoding
+            min_threshold: The minimum threshold for the zero suppression
+            output_mean_scaling: Whether to subtract the ground truth with a mean value
+            output_mean_value: The mean value to subtract from the ground truth
+            output_norm_scaling: Whether to scale the ground truth with a norm value
+            output_norm_value: The value with which to scale the ground truth
+
+        Returns:
+            train_dset: The training dataset
+            val_dset: The validation dataset
+            test_dset: The test dataset
+            train_size: The size of the training dataset
+            val_size: The size of the validation dataset
+            test_size: The size of the test dataset
+    '''
     paths = list(glob.glob(os.path.join(root_dir, "*.parquet")))
 
     dsets = []
@@ -108,6 +154,5 @@ def get_datasets(
         [train_size, val_size, test_size],
         generator=torch.Generator().manual_seed(42),
     )
-    test_dset.required_transforms = []
 
     return train_dset, val_dset, test_dset, train_size, val_size, test_size
