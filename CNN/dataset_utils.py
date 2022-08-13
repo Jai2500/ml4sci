@@ -5,6 +5,16 @@ import numpy as np
 
 
 def get_transforms():
+    '''
+        Returns the required transformation to be applied on the dataset.
+        
+        Args:
+            None
+
+        Returns:
+            The list of transforms: List[torchvison.Transforms]
+    '''
+
     required_transform = [
         # T.Resize(224),
         T.RandomHorizontalFlip(),
@@ -21,6 +31,22 @@ def get_transforms():
 
 
 def get_loaders(train_dset, val_dset, test_dset, train_batch_size, val_batch_size, test_batch_size):
+    '''
+        This function provides the loaders for the datasets
+        
+        Args:
+            train_dset: Training dataset
+            val_dset: Validation dataset
+            test_dset: Test dataset
+            train_batch_size: Training batch size
+            val_batch_size: Validation batch size
+            test_batch_size: Test batch size
+
+        Returns:
+            train_loader: Training dataset data loader
+            val_loader: Validation dataset data loader
+            test_loader: Test dataset data loader
+    '''
     train_loader = torch.utils.data.DataLoader(
         train_dset, shuffle=True, batch_size=train_batch_size, pin_memory=True
     )
@@ -34,6 +60,15 @@ def get_loaders(train_dset, val_dset, test_dset, train_batch_size, val_batch_siz
 
 
 def positional_encoding(data, pe_scales):
+    '''
+        Performs cos/sin positional encoding provided the data and the scales
+        Args:
+            data: The data on which the positional encoding has to be applied
+            pe_scales: The scales of the positional encoding
+
+        Returns:
+            The tensor with the cos/sin positional encoding performed on the data 
+    '''
     pe_cos = torch.cat([torch.cos(2**i * np.pi * torch.as_tensor(data))
                        for i in range(pe_scales)])
     pe_sin = torch.cat([torch.sin(2**i * np.pi * torch.as_tensor(data))
@@ -43,4 +78,13 @@ def positional_encoding(data, pe_scales):
 
 
 def zero_suppression(X_jets, min_threshold):
+    '''
+        Performs zero suppression on the image
+        Args:
+            X_jets: The image on which zero suppression needs to be performed
+            min_threshold: The threshold below which to set the pixel value as 0
+
+        Returns:
+            The zero suppressed image
+    '''
     return np.where(np.abs(X_jets) >= min_threshold, X_jets, 0.)

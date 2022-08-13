@@ -4,7 +4,19 @@ import timm
 
 
 class RegressModel(torch.nn.Module):
-    def __init__(self, model, in_features, use_pe=False, pe_scales=0):
+    '''
+        Model to perform the regression on the data. 
+        Builds a small MLP network on a provided backbone network.
+    '''
+    def __init__(self, model, in_features=None, use_pe=False, pe_scales=0):
+        '''
+            Init fn. of the RegressModel.
+            Args:
+                model: The backbone model to operate on the images
+                in_features[Optional]: Useful if the model is swapped with timm
+                use_pe: Whether positional encoding is being used
+                pe_scales: The scales of the positional encoding
+        '''
         super().__init__()
         self.model = model
         in_features = self.model.fc.in_features
@@ -32,6 +44,19 @@ class RegressModel(torch.nn.Module):
 
 
 def get_model(device, model, pretrained=False, use_pe=False, pe_scales=0):
+    '''
+        Returns the model based on the arguments
+        Args:
+            device: The device to run the model on
+            model: The backbone model choice
+            pretrained: Whether to use the pretrained backbone
+            use_pe: Whether positional encoding is being used
+            pe_scales: The scale of the positional encoding
+
+        Returns:
+            regress_model: Model that is used to perform regression
+    '''
+    
     # input_model = timm.create_model(
     #     model,
     #     pretrained=pretrained,

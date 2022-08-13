@@ -9,6 +9,11 @@ from dataset_utils import positional_encoding, zero_suppression
 
 
 class ImageDatasetFromParquet(torch.utils.data.Dataset):
+    '''
+        Dataset to extract Image from the Parquet File. This does not load
+        the entire Parquet Dataset on memory but reads from it every time
+        an image is queried.
+    '''
     def __init__(
         self,
         filename,
@@ -22,6 +27,23 @@ class ImageDatasetFromParquet(torch.utils.data.Dataset):
         output_norm_scaling=False,
         output_norm_value=None,
     ) -> None:
+        '''
+            Init fn. of the dataset
+            Args:
+                filename: The path to the parquet file
+                transforms: Transforms to be applied on the image
+                use_pe: Whether to use sin/cos positional encoding on the features
+                pe_scales: The scales for the positional encoding
+                use_zero_suppression: Whether to use zero suppression on the images
+                min_threshold: The minimum threshold for zero suppression
+                output_mean_scaling: Whether to subtract the ground truth with a mean value
+                output_mean_value: The mean value to subtract the ground truth with
+                output_norm_scaling: Whether to scale the ground truth with a norm value
+                output_norm_value: The norm value to scale the ground truth with
+
+            Returns:
+                None
+        '''
         super().__init__()
 
         self.file = pq.ParquetFile(filename)
@@ -40,6 +62,10 @@ class ImageDatasetFromParquet(torch.utils.data.Dataset):
         self,
         idx,
     ):
+        '''
+            __getitem__ function of a Pytorch dataset. 
+            Returns the traning element. 
+        '''
         row = self.file.read_row_group(idx).to_pydict()
         to_return = {
             "X_jets":
@@ -84,6 +110,31 @@ def get_datasets(
     output_norm_scaling=False,
     output_norm_value=1.,
 ):
+    '''
+        Returns the datasets provided the root directory of the multiple parquet files.
+        Args:
+            root_dir: The root directory containing all the parquet files
+            num_files: The number of files to be read
+            test_ratio: The ratio of the dataset to be used as the test dataset
+            val_ratio: The ratio of the dataset to be used as the validation dataset
+            required_transforms: The required transform for the training and validation dataset
+            use_pe: Whether to use sin/cos positional encoding
+            pe_scales: The scales for the positional encoding
+            use_zero_suppression: Whether to use zero suppression on the images
+            min_threshold: The minimum threshold for the zero suppression
+            output_mean_scaling: Whether to subtract the ground truth with a mean value
+            output_mean_value: The mean value to subtract from the ground truth
+            output_norm_scaling: Whether to scale the ground truth with a norm value
+            output_norm_value: The value with which to scale the ground truth
+
+        Returns:
+            train_dset: The training dataset
+            val_dset: The validation dataset
+            test_dset: The test dataset
+            train_size: The size of the training dataset
+            val_size: The size of the validation dataset
+            test_size: The size of the test dataset
+    '''
     paths = list(glob.glob(os.path.join(root_dir, "*.parquet")))
 
     dsets = []
