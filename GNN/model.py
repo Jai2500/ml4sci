@@ -51,14 +51,14 @@ class DGCNN(torch.nn.Module):
     '''
         DGCNN network that is similar to the ParticleNet architecture
     '''
-    def __init__(self, k=7, use_pe=False, pe_scales=0):
+    def __init__(self, x_size, pos_size, k=7, use_pe=False, pe_scales=0):
         super().__init__()
         self.dynamic_conv_1 = DynamicEdgeConvPN(
             edge_nn=MLPStack(
-                [20 if not use_pe else 20 * (pe_scales * 2 + 1), 32, 32, 32], bn=True, act=True
+                [x_size * 2 if not use_pe else x_size * 2 * (pe_scales * 2 + 1), 32, 32, 32], bn=True, act=True
             ),
             nn=MLPStack(
-                [10, 32, 32, 32], bn=True, act=True
+                [x_size, 32, 32, 32], bn=True, act=True
             ),
             k=k
         )
@@ -93,11 +93,11 @@ class SimpleGAT(torch.nn.Module):
     '''
         Simple 2 layered GAT GNN
     '''
-    def __init__(self, k=7, use_pe=False, pe_scales=0):
+    def __init__(self, x_size, pos_size, k=7, use_pe=False, pe_scales=0):
         super().__init__()
         self.k = k
         self.gat_conv_1 = torch_geometric.nn.GATv2Conv(
-            in_channels=10 if not use_pe else 10 * (pe_scales * 2 + 1),
+            in_channels=x_size if not use_pe else x_size * (pe_scales * 2 + 1),
             out_channels=16,
             heads=4
         )
@@ -163,7 +163,7 @@ class RegressModel(torch.nn.Module):
         return self.out_lin(out)
 
 
-def get_model(device, model, pretrained=False, use_pe=False, pe_scales=0):
+def get_model(device, model, point_fn, pretrained=False, use_pe=False, pe_scales=0):
     '''
         Returns the model based on the arguments
         Args:
@@ -176,7 +176,16 @@ def get_model(device, model, pretrained=False, use_pe=False, pe_scales=0):
         Returns:
             regress_model: Model that is used to perform regression
     '''
-    input_model = DGCNN(use_pe=use_pe, pe_scales=pe_scales) if model == 'dgcnn' else SimpleGAT(use_pe=use_pe, pe_scales=pe_scales)
+    if point_fn == 'total':
+        x_size = 10
+        pos_size = 2
+    elif point_fn == 'channel_wise':
+        x_size = 11
+        pos_size = 10
+    else:
+        raise NotImplementedError()
+
+    input_model = DGCNN(x_size=x_size, pos_size=pos_size, use_pe=use_pe, pe_scales=pe_scales) if model == 'dgcnn' else SimpleGAT(x_size=x_size, pos_size=pos_size,use_pe=use_pe, pe_scales=pe_scales)
     regress_model = RegressModel(
         model=input_model,
         in_features=128,

@@ -171,7 +171,7 @@ if __name__ == '__main__':
     train_loader, val_loader, test_loader = get_loaders(
         train_dset, val_dset, test_dset, args.train_batch_size, args.val_batch_size, args.test_batch_size)
 
-    model = get_model(args.device, model=args.model, pretrained=args.pretrained,
+    model = get_model(args.device, model=args.model, point_fn=args.point_fn, pretrained=args.pretrained,
                       use_pe=args.use_pe, pe_scales=args.num_pe_scales)
     optimizer, scheduler = get_optimizer(
         model, args.lr, args.lr_step, args.lr_gamma)

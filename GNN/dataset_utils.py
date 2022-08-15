@@ -82,6 +82,7 @@ def points_channel_wise(X_jets, suppression_thresh):
 
     pos = np.concatenate([xy_pos, channel_onehot], axis=1)
     x = X_jets[idx[0], idx[1], idx[2]].T 
-
+    x = np.expand_dims(x, axis=1)
+    
     return x, pos
     
