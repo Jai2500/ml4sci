@@ -63,3 +63,25 @@ def normalize_x(x):
     x = x / np.array([10.278656283775618, 7.64753320751208, 16.912319597559645, 9.005579923580713, 21.367327333103688, 7.489890622699373, 12.977402491253788, 24.50774893130742])
 
     return x
+
+def points_all_channels(X_jets, suppression_thresh):
+    idx = np.where(abs(X_jets).sum(axis=0) > suppression_thresh)
+    pos = np.array(idx).T / X_jets.shape[1]
+    x = X_jets[:, idx[0], idx[1]].T
+
+    return x, pos
+
+def points_channel_wise(X_jets, suppression_thresh):
+    idx = np.where(abs(X_jets) > suppression_thresh)
+    total_pos = np.array(idx).T
+    
+    channel_pos = total_pos[:, 0]
+    channel_onehot = np.eye(X_jets.shape[0])[channel_pos]
+
+    xy_pos = total_pos[:, 1:] / X_jets.shape[1:]
+
+    pos = np.concatenate([xy_pos, channel_onehot], axis=1)
+    x = X_jets[idx[0], idx[1], idx[2]].T 
+
+    return x, pos
+    

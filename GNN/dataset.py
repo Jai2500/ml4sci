@@ -5,7 +5,7 @@ import torch_geometric
 import glob
 import os
 from tqdm.auto import tqdm
-from dataset_utils import normalize_x, positional_encoding
+from dataset_utils import normalize_x, points_all_channels, points_channel_wise, positional_encoding
 
 class PointCloudFromParquetDataset(torch.utils.data.Dataset):
     '''
@@ -16,6 +16,8 @@ class PointCloudFromParquetDataset(torch.utils.data.Dataset):
     def __init__(
         self,
         filename,
+        point_fn='total',
+        use_x_normalization=False,
         suppresion_thresh=0,
         use_pe=False,
         pe_scales=0,
@@ -43,8 +45,10 @@ class PointCloudFromParquetDataset(torch.utils.data.Dataset):
 
         self.file = pq.ParquetFile(filename)
         self.suppression_thresh = suppresion_thresh
-
+        
+        self.point_fn = point_fn
         self.use_pe = use_pe
+        self.use_x_normalization = use_x_normalization
         self.pe_scales = pe_scales
         self.output_mean_scaling = output_mean_scaling
         self.output_mean_value = output_mean_value
@@ -59,10 +63,17 @@ class PointCloudFromParquetDataset(torch.utils.data.Dataset):
         row = self.file.read_row_group(idx).to_pydict()
         
         arr = np.array(row['X_jet'][0])
-        idx = np.where(arr.sum(axis=0) > self.suppression_thresh)
-        pos = np.array(idx).T / arr.shape[1]
-        x = arr[:, idx[0], idx[1]].T
-        x = normalize_x(x)
+        
+        if self.point_fn == 'total':
+            x, pos = points_all_channels(arr, self.suppression_thresh)
+        elif self.point_fn == 'channel_wise':
+            x, pos = points_channel_wise(arr, self.suppression_thresh)
+        else:
+            raise NotImplementedError(f"No function for {self.point_fn}")
+        
+        if self.use_x_normalization:
+            x = normalize_x(x)
+
         x = np.concatenate([x, pos], axis=1)
         
         pt = row['pt'][0]

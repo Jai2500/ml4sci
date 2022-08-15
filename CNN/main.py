@@ -11,6 +11,16 @@ import os
 
 
 def save_model(model, save_path):
+    '''
+        Saves the model to the path provided.
+        Args:
+            model: The model weights to be saved
+            save_path: The root dir path to save the model in
+        
+        Returns:
+            None
+    '''
+
     os.makedirs(save_path, exist_ok=True)
     torch.save(model.state_dict(), os.path.join(save_path, "model.pth"))
 
