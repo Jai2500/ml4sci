@@ -70,13 +70,14 @@ def train(args, num_epochs, model, criterion, optimizer, scheduler, train_loader
             mae = metric(out.detach(), m.unsqueeze(-1))
             
             tqdm_iter.set_postfix(loss=loss.item(), mae=mae.item())
-            wandb.log(
-                {
-                    "train_loss": loss.item(),
-                    "train_mae": mae.item(),
-                    "train_step": (it * train_batch_size) + epoch * train_size,
-                }
-            )
+            if not args.debug:
+                wandb.log(
+                    {
+                        "train_loss": loss.item(),
+                        "train_mae": mae.item(),
+                        "train_step": (it * train_batch_size) + epoch * train_size,
+                    }
+                )
 
             loss.backward()
             optimizer.step()
@@ -120,13 +121,14 @@ def train(args, num_epochs, model, criterion, optimizer, scheduler, train_loader
                 val_loss_avg_meter.update(loss.item(), out.size(0))
                 val_mae_avg_meter.update(mae.item(), out.size(0))
                 val_tqdm_iter.set_postfix(loss=val_loss_avg_meter.avg, mae=val_mae_avg_meter.avg)
-                wandb.log(
-                    {
-                        "val_loss": loss.item(),
-                        "val_mae": mae.item(),
-                        "val_step": (it * val_batch_size) + epoch * val_size,
-                    }
-                )
+                if not args.debug:
+                    wandb.log(
+                        {
+                            "val_loss": loss.item(),
+                            "val_mae": mae.item(),
+                            "val_step": (it * val_batch_size) + epoch * val_size,
+                        }
+                    )
 
         if val_loss_avg_meter.avg < best_val_loss:
             best_model = copy.deepcopy(model).to("cpu", non_blocking=True)
