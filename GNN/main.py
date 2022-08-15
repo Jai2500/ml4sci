@@ -149,6 +149,7 @@ if __name__ == '__main__':
     parser.add_argument('--output_norm_value', type=float, default=119.904,
                         help='The the normalizing constant to divide the output by')
     parser.add_argument('--model', type=str, default='gat', choices=['dgcnn', 'gat'])
+    parser.add_argument('--point_fn', type=str, default='total', choices=['total', 'channel_wise'])
     parser.add_argument('--debug', action='store_true')
     args = parser.parse_args()
 
@@ -157,6 +158,7 @@ if __name__ == '__main__':
         args.num_files,
         args.test_ratio,
         args.val_ratio,
+        point_fn=args.point_fn,
         use_pe=args.use_pe,
         pe_scales=args.num_pe_scales,
         min_threshold=args.min_threshold,

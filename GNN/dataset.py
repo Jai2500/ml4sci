@@ -109,6 +109,7 @@ def get_datasets(
     num_files,
     test_ratio,
     val_ratio,
+    point_fn,
     use_pe=False,
     pe_scales=0,
     min_threshold=0.,
@@ -147,6 +148,7 @@ def get_datasets(
         dsets.append(
             PointCloudFromParquetDataset(
                 path,
+                point_fn=point_fn,
                 use_pe=use_pe, pe_scales=pe_scales,
                 suppresion_thresh=min_threshold,
                 output_mean_scaling=output_mean_scaling, output_mean_value=output_mean_value,

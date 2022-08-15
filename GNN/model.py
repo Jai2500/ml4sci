@@ -51,11 +51,11 @@ class DGCNN(torch.nn.Module):
     '''
         DGCNN network that is similar to the ParticleNet architecture
     '''
-    def __init__(self, k=7):
+    def __init__(self, k=7, use_pe=False, pe_scales=0):
         super().__init__()
         self.dynamic_conv_1 = DynamicEdgeConvPN(
             edge_nn=MLPStack(
-                [20, 32, 32, 32], bn=True, act=True
+                [20 if not use_pe else 20 * (pe_scales * 2 + 1), 32, 32, 32], bn=True, act=True
             ),
             nn=MLPStack(
                 [10, 32, 32, 32], bn=True, act=True
@@ -65,10 +65,10 @@ class DGCNN(torch.nn.Module):
 
         self.dynamic_conv_2 = DynamicEdgeConvPN(
             edge_nn=MLPStack(
-                [64, 64, 64, 64], bn=True, act=True
+                [64, 64, 64, 128], bn=True, act=True
             ),
             nn=MLPStack(
-                [32, 64, 64, 64], bn=True, act=True
+                [32, 64, 64, 128], bn=True, act=True
             ),
             k=k
         )
@@ -176,7 +176,7 @@ def get_model(device, model, pretrained=False, use_pe=False, pe_scales=0):
         Returns:
             regress_model: Model that is used to perform regression
     '''
-    input_model = DGCNN() if model == 'dgcnn' else SimpleGAT(use_pe=use_pe, pe_scales=pe_scales)
+    input_model = DGCNN(use_pe=use_pe, pe_scales=pe_scales) if model == 'dgcnn' else SimpleGAT(use_pe=use_pe, pe_scales=pe_scales)
     regress_model = RegressModel(
         model=input_model,
         in_features=128,
