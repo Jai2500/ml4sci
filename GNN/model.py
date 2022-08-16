@@ -143,24 +143,20 @@ class RegressModel(torch.nn.Module):
         super().__init__()
         self.model = model
 
-        self.out_lin = torch.nn.Sequential(
-            torch.nn.Linear(in_features + 3, in_features // 2, bias=True),
-            torch.nn.BatchNorm1d(in_features // 2),
-            torch.nn.SiLU(),
-            torch.nn.Dropout(),
-            torch.nn.Linear(in_features // 2, in_features // 4, bias=True),
-            torch.nn.BatchNorm1d(in_features // 4),
-            torch.nn.SiLU(),
-            torch.nn.Dropout(),
-            torch.nn.Linear(in_features // 4, 1, bias=True),
+
+        self.out_mlp = MLPStack(
+            [in_features + 3, in_features * 2, in_features * 2, in_features, in_features // 2],
+            bn=True, act=True
         )
+
+        self.out_lin = torch.nn.Linear(in_features//2, 1)
 
     def forward(self, data):
         out = self.model(data)
         out = torch.cat(
             [out, data.pt.unsqueeze(-1), data.ieta.unsqueeze(-1), data.iphi.unsqueeze(-1)], dim=1
         )
-        return self.out_lin(out)
+        return self.out_lin(self.out_mlp(out))
 
 
 def get_model(device, model, point_fn, pretrained=False, use_pe=False, pe_scales=0):
