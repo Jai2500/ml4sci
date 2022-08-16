@@ -71,7 +71,7 @@ class ImageDatasetFromParquet(torch.utils.data.Dataset):
             "X_jets":
                 self.transforms(np.array(row["X_jet"][0]).reshape(125, 125, 8)).float() if not self.use_zero_suppression
                 else self.transforms(zero_suppression(np.array(row["X_jet"][0]).reshape(125, 125, 8), self.min_threshold)).float(),
-            "m": row["m"][0],
+            "m": torch.as_tensor(row["m"][0], dtype=torch.float),
             "pt": torch.as_tensor(row["pt"][0], dtype=torch.float).unsqueeze(-1),
             "ieta": torch.as_tensor(row["ieta"][0], dtype=torch.float).unsqueeze(-1),
             "iphi": torch.as_tensor(row["iphi"][0], dtype=torch.float).unsqueeze(-1),

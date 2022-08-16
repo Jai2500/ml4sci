@@ -26,11 +26,11 @@ for data in pbar:
     counts = torch.count_nonzero(data['X_jets'], dim=[0, 2, 3])
     avg_meter.update(
         data['X_jets'].sum(dim=[0, 2, 3]) / counts,
-        n=data['m'].shape[0]
+        n=counts
     )
     sq_avg_meter.update(
         (data['X_jets'] ** 2).sum(dim=[0,2,3]) / counts,
-        n=data['m'].shape[0]
+        n=counts
     )
 
     rel_count += data['m'].shape[0]
@@ -39,5 +39,5 @@ for data in pbar:
         print(f"current_mean_estimate={avg_meter.avg.numpy()}, current_std_estimate={(sq_avg_meter.avg - avg_meter.avg**2).numpy()}")
         rel_count -= 1000
 
-print(avg_meter.avg.numpy(), avg_meter.count)
+print(f"current_mean_estimate={avg_meter.avg.numpy()}, current_std_estimate={(sq_avg_meter.avg - avg_meter.avg**2).numpy()}")
 

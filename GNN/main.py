@@ -148,8 +148,8 @@ if __name__ == '__main__':
                         help='Whether to divide the output by normalizing constant')
     parser.add_argument('--output_norm_value', type=float, default=119.904,
                         help='The the normalizing constant to divide the output by')
-    parser.add_argument('--model', type=str, default='gat', choices=['dgcnn', 'gat'])
-    parser.add_argument('--point_fn', type=str, default='total', choices=['total', 'channel_wise'])
+    parser.add_argument('--model', type=str, default='gat', choices=['dgcnn', 'gat'], help='The backbone GNN to use')
+    parser.add_argument('--point_fn', type=str, default='total', choices=['total', 'channel_wise'], help='How to obtain points from the image')
     parser.add_argument('--debug', action='store_true')
     args = parser.parse_args()
 
