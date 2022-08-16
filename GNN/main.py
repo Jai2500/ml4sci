@@ -70,7 +70,7 @@ def main(
             The best model
     '''
     if not args.debug:
-        wandb.init(name=run_name, project="gsoc-cnn-runs")
+        wandb.init(name=run_name, project="gsoc-gnn-runs")
         wandb.config.update(args)
 
     if device == 'cuda':
