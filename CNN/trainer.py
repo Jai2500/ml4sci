@@ -1,5 +1,5 @@
 import copy
-from train_utils import AverageMeter
+from train_utils import AverageMeter, plot_
 import wandb
 from tqdm.auto import tqdm
 import torch
@@ -81,6 +81,9 @@ def train(args, num_epochs, model, criterion, optimizer, scheduler, train_loader
 
             loss.backward()
             optimizer.step()
+
+            if ((it * train_batch_size) + epoch * train_size) % 1000:
+                plot_(out, m, str((it * train_batch_size) + epoch * train_size))
 
         model.eval()
         val_tqdm_iter = tqdm(val_loader, total=len(val_loader))

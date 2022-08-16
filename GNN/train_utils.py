@@ -1,4 +1,8 @@
 import torch
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+sns.set_theme()
 
 class AverageMeter(object):
     """Computes and stores the average and current value"""
@@ -58,3 +62,15 @@ def get_test_metric():
         Returns the test metric
     '''
     return torch.nn.L1Loss()
+
+
+def plot_(pred, truth, name):
+    figure = plt.figure(8, 8)
+    pred = pred[:, 0].detach().cpu()
+    truth = truth.detach().cpu()
+
+    plt.scatter(pred, truth)
+    plt.xlabel("Predictions")
+    plt.ylabel("Truth")
+
+    plt.savefig(name, dpi=150)
