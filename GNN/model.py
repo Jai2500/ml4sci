@@ -90,18 +90,19 @@ class DGCNN(torch.nn.Module):
 
         return x_out
 
-def compute_degree(train_dset, k=7):
-    max_degree = -1
-    for data in tqdm(train_dset, desc='Max Degree'):
-        edge_index = torch_geometric.nn.knn_graph(data.pos, k=k, num_workers=1)
-        d = torch_geometric.utils.degree(edge_index[1], num_nodes=data.num_nodes, dtype=torch.long)
-        max_degree = max(max_degree, d.max())
-    
+def compute_degree(train_dset, k=7, device='cpu'):
+    # max_degree = -1
+    # for data in tqdm(train_dset, desc='Max Degree'):
+    #     edge_index = torch_geometric.nn.knn_graph(data.pos, k=k, num_workers=1)
+    #     d = torch_geometric.utils.degree(edge_index[1], num_nodes=data.num_nodes, dtype=torch.long)
+    #     max_degree = max(max_degree, d.max())
+    max_degree = k
     deg = torch.zeros(max_degree + 1, dtype=torch.long)
     for data in tqdm(train_dset, desc='Degree Distribution'):
+        data = data.to(device, non_blocking=True)
         edge_index = torch_geometric.nn.knn_graph(data.pos, k=k, num_workers=1)
         d = torch_geometric.utils.degree(edge_index[1], num_nodes=data.num_nodes, dtype=torch.long)
-        deg += torch.bincount(d, minlength=d.numel())
+        deg += torch.bincount(d, minlength=deg.numel())
 
     return deg
 
@@ -224,7 +225,7 @@ class RegressModel(torch.nn.Module):
         return self.out_lin(self.out_mlp(out))
 
 
-def get_model(device, model, point_fn, train_dset, pretrained=False, use_pe=False, pe_scales=0):
+def get_model(device, model, point_fn, train_loader, pretrained=False, use_pe=False, pe_scales=0):
     '''
         Returns the model based on the arguments
         Args:
@@ -251,7 +252,7 @@ def get_model(device, model, point_fn, train_dset, pretrained=False, use_pe=Fals
     elif model == 'gat':
         input_model = SimpleGAT(x_size=x_size, pos_size=pos_size,use_pe=use_pe, pe_scales=pe_scales)
     elif model == 'pna':
-        deg = compute_degree(train_dset)
+        deg = compute_degree(train_loader, device=device)
         input_model = PNANet(x_size, pos_size, deg, use_pe=use_pe, pe_scales=pe_scales)
     else:
         raise NotImplementedError(f"Model type {model} not implemented")

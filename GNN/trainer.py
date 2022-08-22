@@ -71,7 +71,7 @@ def train(args, num_epochs, model, criterion, optimizer, scheduler, train_loader
             loss.backward()
             optimizer.step()
 
-            if (it * train_batch_size) % 1000 == 0:
+            if args.plot and (it * train_batch_size) % 1000 == 0:
                 plot_(out, m, str((it * train_batch_size) + epoch * train_size))
 
         model.eval()

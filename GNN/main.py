@@ -148,8 +148,9 @@ if __name__ == '__main__':
                         help='Whether to divide the output by normalizing constant')
     parser.add_argument('--output_norm_value', type=float, default=119.904,
                         help='The the normalizing constant to divide the output by')
-    parser.add_argument('--model', type=str, default='gat', choices=['dgcnn', 'gat'], help='The backbone GNN to use')
+    parser.add_argument('--model', type=str, default='gat', choices=['dgcnn', 'gat', 'pna'], help='The backbone GNN to use')
     parser.add_argument('--point_fn', type=str, default='total', choices=['total', 'channel_wise'], help='How to obtain points from the image')
+    parser.add_argument('--plot', action='store_true', help='Whether to plot the predicted vs ground truth results')
     parser.add_argument('--debug', action='store_true')
     args = parser.parse_args()
 
@@ -171,7 +172,7 @@ if __name__ == '__main__':
     train_loader, val_loader, test_loader = get_loaders(
         train_dset, val_dset, test_dset, args.train_batch_size, args.val_batch_size, args.test_batch_size)
 
-    model = get_model(args.device, model=args.model, point_fn=args.point_fn, pretrained=args.pretrained,
+    model = get_model(args.device, model=args.model, train_loader=train_loader, point_fn=args.point_fn, pretrained=args.pretrained,
                       use_pe=args.use_pe, pe_scales=args.num_pe_scales)
     optimizer, scheduler = get_optimizer(
         model, args.lr, args.lr_step, args.lr_gamma)
