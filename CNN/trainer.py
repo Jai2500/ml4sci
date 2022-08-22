@@ -4,6 +4,9 @@ import wandb
 from tqdm.auto import tqdm
 import torch
 
+m0_scale    = 85
+m1_scale    = 415
+
 def train(args, num_epochs, model, criterion, optimizer, scheduler, train_loader, train_batch_size, train_size, val_loader, val_batch_size, val_size, device):
     '''
         Performs the training of the model, logs the results on Wandb and returns the best model.
@@ -59,13 +62,17 @@ def train(args, num_epochs, model, criterion, optimizer, scheduler, train_loader
 
             loss = criterion(out, m.unsqueeze(-1))
 
-            if args.output_norm_scaling:
+            if args.output_norm_scaling and not args.scale_histogram:
                 m = m * args.output_norm_value
                 out = out * args.output_norm_value
 
-            if args.output_mean_scaling:
+            if args.output_mean_scaling and not args.scale_histogram:
                 m = m + args.output_mean_value
                 out = out + args.output_mean_value
+
+            if args.scale_histogram:
+                m = (m * m1_scale) + m0_scale
+                out = (out * m1_scale) + m0_scale
 
             mae = metric(out.detach(), m.unsqueeze(-1))
             

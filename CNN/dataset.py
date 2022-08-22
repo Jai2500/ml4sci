@@ -7,6 +7,15 @@ from tqdm.auto import tqdm
 import os
 from dataset_utils import positional_encoding, zero_suppression
 
+hcal_scale  = 1
+ecal_scale  = 0.1
+pt_scale    = 0.01
+dz_scale    = 0.05
+d0_scale    = 0.1
+m0_scale    = 85
+m1_scale    = 415
+p0_scale = 400
+p1_scale = 600
 
 class ImageDatasetFromParquet(torch.utils.data.Dataset):
     '''
@@ -17,6 +26,7 @@ class ImageDatasetFromParquet(torch.utils.data.Dataset):
     def __init__(
         self,
         filename,
+        scale_as_histogram=False,
         transforms=[],
         use_pe=False,
         pe_scales=None,
@@ -50,6 +60,7 @@ class ImageDatasetFromParquet(torch.utils.data.Dataset):
 
         self.transforms = T.Compose([T.ToTensor(), *transforms])
         self.use_pe = use_pe
+        self.scale_as_histogram = scale_as_histogram
         self.pe_scales = pe_scales
         self.use_zero_suppression = use_zero_supression
         self.min_threshold = min_threshold
@@ -69,7 +80,7 @@ class ImageDatasetFromParquet(torch.utils.data.Dataset):
         row = self.file.read_row_group(idx).to_pydict()
         to_return = {
             "X_jets":
-                self.transforms(np.array(row["X_jet"][0]).reshape(125, 125, 8)).float() if not self.use_zero_suppression
+                self.transforms(np.array(row["X_jet"][0]).reshape(125, 125, 8)).float() if (not self.use_zero_suppression and not self.scale_as_histogram)
                 else self.transforms(zero_suppression(np.array(row["X_jet"][0]).reshape(125, 125, 8), self.min_threshold)).float(),
             "m": torch.as_tensor(row["m"][0], dtype=torch.float),
             "pt": torch.as_tensor(row["pt"][0], dtype=torch.float).unsqueeze(-1),
@@ -77,16 +88,39 @@ class ImageDatasetFromParquet(torch.utils.data.Dataset):
             "iphi": torch.as_tensor(row["iphi"][0], dtype=torch.float).unsqueeze(-1),
         }
 
+        if self.scale_as_histogram:
+            to_return['X_jets'][0] *= pt_scale
+            to_return['X_jets'][1] *= dz_scale
+            to_return['X_jets'][2] *= d0_scale
+            to_return['X_jets'][3] *= ecal_scale
+            to_return['X_jets'][4] *= hcal_scale
+            to_return['pt'] = (to_return['pt'] - p0_scale)/p1_scale 
+            to_return['m'] = (to_return['m'] - m0_scale)/m1_scale
+            to_return['iphi'] = to_return['iphi'] / 360.
+            to_return['ieta'] = to_return['ieta'] / 140.
+
+            # High value suppression
+            to_return['X_jets'][1][to_return['X_jets'][1] < -1] = 0 #(20 cm)
+            to_return['X_jets'][1][to_return['X_jets'][1] > 1] = 0 #(20 cm)
+            to_return['X_jets'][2][to_return['X_jets'][2] < -1] = 0 #(20 cm)
+            to_return['X_jets'][2][to_return['X_jets'][2] > 1] = 0 #(20 cm)
+
+            # Zero suppression
+            to_return['X_jets'][0][to_return['X_jets'][0] < 1.e-2] = 0. #(1 GeV)
+            to_return['X_jets'][3][to_return['X_jets'][3] < 1.e-2] = 0. #(0.1 GeV)
+            to_return['X_jets'][4][to_return['X_jets'][4] < 1.e-2] = 0. #(0.01 GeV)
+
+
         if self.use_pe:
             for k in to_return:
                 if k != 'm':
                     to_return[k] = positional_encoding(
                         to_return[k], self.pe_scales)
 
-        if self.output_mean_scaling:
+        if self.output_mean_scaling and not self.scale_as_histogram:
             to_return['m'] = to_return['m'] - self.output_mean_value
 
-        if self.output_norm_scaling:
+        if self.output_norm_scaling and not self.scale_as_histogram:
             to_return['m'] = to_return['m'] / self.output_norm_value
 
         return to_return
@@ -100,6 +134,7 @@ def get_datasets(
     num_files,
     test_ratio,
     val_ratio,
+    scale_as_histogram=False,
     required_transform=None,
     use_pe=False,
     pe_scales=0,
@@ -142,6 +177,7 @@ def get_datasets(
         dsets.append(
             ImageDatasetFromParquet(
                 path,
+                scale_as_histogram=scale_as_histogram,
                 transforms=required_transform,
                 use_pe=use_pe, pe_scales=pe_scales,
                 use_zero_supression=use_zero_suppression, min_threshold=min_threshold,

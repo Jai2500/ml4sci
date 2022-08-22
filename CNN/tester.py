@@ -2,7 +2,10 @@ from tqdm.auto import tqdm
 from train_utils import AverageMeter
 import torch
 
-def test(model, test_loader, criterion, device, output_norm_scaling=False, output_norm_value=1.):
+m0_scale    = 85
+m1_scale    = 415
+
+def test(args, model, test_loader, criterion, device, output_norm_scaling=False, output_norm_value=1.):
     '''
         Performs testing of the model on the test dataset
         Args:
@@ -42,9 +45,13 @@ def test(model, test_loader, criterion, device, output_norm_scaling=False, outpu
 
             out = model(X, pt, ieta, iphi)
 
-            if output_norm_scaling:
+            if output_norm_scaling and not args.scale_histogram:
                 out *= output_norm_value
                 m *= output_norm_value
+
+            if args.scale_histogram:
+                m = (m * m1_scale) + m0_scale
+                out = (out * m1_scale) + m1_scale
 
             loss = criterion(out, m.unsqueeze(-1))
 

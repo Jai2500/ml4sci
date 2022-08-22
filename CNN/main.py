@@ -83,7 +83,7 @@ def main(
                   train_loader, args.train_batch_size, train_size,
                   val_loader, args.val_batch_size, val_size, device)
 
-    test_error = test(model, test_loader, test_metric, device, output_norm_scaling=args.output_norm_scaling,
+    test_error = test(args, model, test_loader, test_metric, device, output_norm_scaling=args.output_norm_scaling,
                       output_norm_value=args.output_norm_value)
     print(f"Model on Test dataset - Error: {test_error}")
 
@@ -152,6 +152,7 @@ if __name__ == '__main__':
     parser.add_argument('--output_norm_value', type=float, default=119.904,
                         help='The the normalizing constant to divide the output by')
     parser.add_argument('--model', type=str, default='resnet')
+    parser.add_argument('--scale_histogram', action='store_true', help='Whether to scale as histograms')
     parser.add_argument('--debug', action='store_true')
     args = parser.parse_args()
 
@@ -161,6 +162,7 @@ if __name__ == '__main__':
         args.num_files,
         args.test_ratio,
         args.val_ratio,
+        scale_as_histogram=args.scale_histogram,
         required_transform=dset_transforms,
         use_pe=args.use_pe,
         pe_scales=args.num_pe_scales,
