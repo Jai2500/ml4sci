@@ -153,6 +153,7 @@ if __name__ == '__main__':
                         help='The the normalizing constant to divide the output by')
     parser.add_argument('--model', type=str, default='resnet')
     parser.add_argument('--scale_histogram', action='store_true', help='Whether to scale as histograms')
+    parser.add_argument('--plot', action='store_true', help='Whether to scatter plot prediction vs ground truth')
     parser.add_argument('--debug', action='store_true')
     args = parser.parse_args()
 
