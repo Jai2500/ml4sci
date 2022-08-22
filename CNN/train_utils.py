@@ -65,7 +65,7 @@ def get_test_metric():
 
 
 def plot_(pred, truth, name):
-    figure = plt.figure(8, 8)
+    figure = plt.figure(figsize=(8, 8))
     pred = pred[:, 0].detach().cpu()
     truth = truth.detach().cpu()
 
