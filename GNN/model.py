@@ -1,5 +1,6 @@
 import torch_geometric
 import torch
+from tqdm.auto import tqdm
 
 class MLPStack(torch.nn.Module):
     '''
@@ -89,6 +90,71 @@ class DGCNN(torch.nn.Module):
 
         return x_out
 
+def compute_degree(train_dset, k=7):
+    max_degree = -1
+    for data in tqdm(train_dset, desc='Max Degree'):
+        edge_index = torch_geometric.nn.knn_graph(data.pos, k=k, num_workers=1)
+        d = torch_geometric.utils.degree(edge_index[1], num_nodes=data.num_nodes, dtype=torch.long)
+        max_degree = max(max_degree, d.max())
+    
+    deg = torch.zeros(max_degree + 1, dtype=torch.long)
+    for data in tqdm(train_dset, desc='Degree Distribution'):
+        edge_index = torch_geometric.nn.knn_graph(data.pos, k=k, num_workers=1)
+        d = torch_geometric.utils.degree(edge_index[1], num_nodes=data.num_nodes, dtype=torch.long)
+        deg += torch.bincount(d, minlength=d.numel())
+
+    return deg
+
+class PNANet(torch.nn.Module):
+    def __init__(self, x_size, pos_size, deg, k=7, use_pe=False, pe_scales=0):
+        super().__init__()
+        self.k = k
+        aggregators = ['mean', 'min', 'max', 'std']
+        scalers = ['identity', 'amplification', 'attenuation']
+
+        self.pna_conv_1 = torch_geometric.nn.PNAConv(
+            in_channels=x_size if not use_pe else x_size * (pe_scales * 2 + 1),
+            out_channels=64,
+            aggregators=aggregators,
+            scalers=scalers,
+            deg=deg,
+            towers=5,
+            pre_layers=1,
+            post_layers=1,
+            divide_input=False
+        )
+        self.bn1 = torch_geometric.nn.BatchNorm(64)
+
+        self.pna_conv_2 = torch_geometric.nn.PNAConv(
+            in_channels=64,
+            out_channels=128,
+            aggregators=aggregators,
+            scalers=scalers,
+            deg=deg,
+            towers=5,
+            pre_layers=1,
+            post_layers=1,
+            divide_input=False
+        )
+        self.bn2 = torch_geometric.nn.BatchNorm(128)
+
+        self.act = torch.nn.ReLU()
+
+    def forward(self, data):
+        pos = data.pos
+        batch = data.batch
+        x = data.x
+
+        edge_index = torch_geometric.nn.knn_graph(x=pos, k=self.k, batch=batch)
+
+        x_out = self.act(self.bn1(self.pna_conv_1(x, edge_index)))
+        x_out = self.act(self.bn2(self.pna_conv_2(x_out, edge_index)))
+
+        x_out = torch_geometric.nn.global_mean_pool(x_out, batch) # Consider global add pool
+        
+        return x_out
+
+
 class SimpleGAT(torch.nn.Module):
     '''
         Simple 2 layered GAT GNN
@@ -106,6 +172,7 @@ class SimpleGAT(torch.nn.Module):
             out_channels=32,
             heads=4
         )
+        self.act = torch.nn.ReLU()
 
     def forward(self, data):
         pos = data.pos
@@ -114,12 +181,10 @@ class SimpleGAT(torch.nn.Module):
 
         edge_index = torch_geometric.nn.knn_graph(x=pos, k=self.k, batch=batch)
 
-        x_out = self.gat_conv_1(
-            x, edge_index
-        )
-        x_out = self.gat_conv_2(
-            x_out, edge_index
-        )
+        x_out = self.act(self.gat_conv_1(
+            x, edge_index))
+        x_out = self.act(self.gat_conv_2(
+            x_out, edge_index))
 
         x_out = torch_geometric.nn.global_mean_pool(x_out, batch)
 
@@ -159,7 +224,7 @@ class RegressModel(torch.nn.Module):
         return self.out_lin(self.out_mlp(out))
 
 
-def get_model(device, model, point_fn, pretrained=False, use_pe=False, pe_scales=0):
+def get_model(device, model, point_fn, train_dset, pretrained=False, use_pe=False, pe_scales=0):
     '''
         Returns the model based on the arguments
         Args:
@@ -181,7 +246,15 @@ def get_model(device, model, point_fn, pretrained=False, use_pe=False, pe_scales
     else:
         raise NotImplementedError()
 
-    input_model = DGCNN(x_size=x_size, pos_size=pos_size, use_pe=use_pe, pe_scales=pe_scales) if model == 'dgcnn' else SimpleGAT(x_size=x_size, pos_size=pos_size,use_pe=use_pe, pe_scales=pe_scales)
+    if model == 'dgcnn':
+        input_model = DGCNN(x_size=x_size, pos_size=pos_size, use_pe=use_pe, pe_scales=pe_scales)
+    elif model == 'gat':
+        input_model = SimpleGAT(x_size=x_size, pos_size=pos_size,use_pe=use_pe, pe_scales=pe_scales)
+    elif model == 'pna':
+        deg = compute_degree(train_dset)
+        input_model = PNANet(x_size, pos_size, deg, use_pe=use_pe, pe_scales=pe_scales)
+    else:
+        raise NotImplementedError(f"Model type {model} not implemented")
     regress_model = RegressModel(
         model=input_model,
         in_features=128,
