@@ -44,14 +44,8 @@ class DynamicEdgeConvPN(torch.nn.Module):
 
     def forward(self, x, pos, batch):
         edge_index = torch_geometric.nn.knn_graph(x=pos, k=self.k, batch=batch, flow=self.flow)
-        if self.edge_feat == 'none':
-            edge_attr = None
-        elif self.edge_feat == 'R':
-            edge_attr = edge_features_as_R(pos, edge_index)
-        else:
-            raise NotImplementedError(f"Edge feat {self.edge_feat} is not implemented")
 
-        edge_out = self.edge_conv(x, edge_index, edge_attr=edge_attr)
+        edge_out = self.edge_conv(x, edge_index)
 
         x_out = self.nn(x)
 
@@ -69,7 +63,7 @@ class DGCNN(torch.nn.Module):
                 [x_size * 2 if not use_pe else x_size * 2 * (pe_scales * 2 + 1), 32, 32, 32], bn=True, act=True
             ),
             nn=MLPStack(
-                [x_size, 32, 32, 32], bn=True, act=True
+                [x_size if not use_pe else x_size * (pe_scales * 2 + 1), 32, 32, 32], bn=True, act=True
             ),
             k=k,
             edge_feat=edge_feat

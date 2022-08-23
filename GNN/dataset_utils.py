@@ -96,3 +96,11 @@ def edge_features_as_R(pos, edge_index):
     ))
 
     return R
+
+def edge_feat_as_diff(x, edge_index):
+    x_i = x[edge_index[0]]
+    x_j = x[edge_index[1]]
+
+    edge_attr = (x_i - x_j)
+
+    return edge_attr

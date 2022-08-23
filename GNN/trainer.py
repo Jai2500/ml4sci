@@ -111,7 +111,14 @@ def train(args, num_epochs, model, criterion, optimizer, scheduler, train_loader
                             "val_step": (it * val_batch_size) + epoch * val_size,
                         }
                     )
-
+        if not args.debug:
+            wandb.log(
+                {
+                    "avg_val_loss": val_loss_avg_meter.avg,
+                    "avg_val_mae": val_mae_avg_meter.avg,
+                    "val_epoch": epoch
+                }
+            )
         if val_loss_avg_meter.avg < best_val_loss:
             best_model = copy.deepcopy(model).to("cpu", non_blocking=True)
             best_val_loss = val_loss_avg_meter.avg
