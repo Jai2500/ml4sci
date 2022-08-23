@@ -1,3 +1,4 @@
+from tkinter.messagebox import NO
 import torch_geometric
 import torch
 from tqdm.auto import tqdm
@@ -122,6 +123,12 @@ class PNANet(torch.nn.Module):
         super().__init__()
         self.k = k
         self.edge_feat = edge_feat
+        if self.edge_feat == 'none':
+            edge_dim = None
+        elif self.edge_feat == 'R':
+            edge_dim = 1
+        else:
+            raise NotImplementedError(f"Edge feat {self.edge_feat} not implemented")
         aggregators = ['mean', 'min', 'max', 'std']
         scalers = ['identity', 'amplification', 'attenuation']
 
@@ -131,7 +138,8 @@ class PNANet(torch.nn.Module):
             aggregators=aggregators,
             scalers=scalers,
             deg=deg,
-            towers=5,
+            edge_dim=edge_dim,
+            towers=4,
             pre_layers=1,
             post_layers=1,
             divide_input=False
@@ -144,7 +152,8 @@ class PNANet(torch.nn.Module):
             aggregators=aggregators,
             scalers=scalers,
             deg=deg,
-            towers=5,
+            edge_dim=edge_dim,
+            towers=4,
             pre_layers=1,
             post_layers=1,
             divide_input=False

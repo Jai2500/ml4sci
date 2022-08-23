@@ -92,7 +92,7 @@ def edge_features_as_R(pos, edge_index):
     pos_j = pos[edge_index[1]]
 
     R = torch.sqrt(torch.relu(
-        ((pos_i - pos_j) ** 2).sum(dim=-1) 
+        ((pos_i - pos_j) ** 2).sum(dim=-1, keepdims=True) 
     ))
 
     return R
