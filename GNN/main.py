@@ -82,7 +82,7 @@ def main(
                   train_loader, args.train_batch_size, train_size,
                   val_loader, args.val_batch_size, val_size, device)
 
-    test_error = test(model, test_loader, test_metric, device, output_norm_scaling=args.output_norm_scaling,
+    test_error = test(args, model, test_loader, test_metric, device, output_norm_scaling=args.output_norm_scaling,
                       output_norm_value=args.output_norm_value)
     print(f"Model on Test dataset - Error: {test_error}")
 
@@ -152,6 +152,7 @@ if __name__ == '__main__':
     parser.add_argument('--point_fn', type=str, default='total', choices=['total', 'channel_wise'], help='How to obtain points from the image')
     parser.add_argument('--plot', action='store_true', help='Whether to plot the predicted vs ground truth results')
     parser.add_argument('--edge_feat', type=str, default='none', choices=['none', 'R'], help='Which method to use to obtain edge_feat')
+    parser.add_argument('--scale_histogram', action='store_true', help='Whether to scale based on histogram scales provided')
     parser.add_argument('--debug', action='store_true')
     args = parser.parse_args()
 
@@ -160,6 +161,7 @@ if __name__ == '__main__':
         args.num_files,
         args.test_ratio,
         args.val_ratio,
+        scale_histogram=args.scale_histogram,
         point_fn=args.point_fn,
         use_pe=args.use_pe,
         pe_scales=args.num_pe_scales,

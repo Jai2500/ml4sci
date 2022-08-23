@@ -7,6 +7,16 @@ import os
 from tqdm.auto import tqdm
 from dataset_utils import normalize_x, points_all_channels, points_channel_wise, positional_encoding
 
+hcal_scale  = 1
+ecal_scale  = 0.1
+pt_scale    = 0.01
+dz_scale    = 0.05
+d0_scale    = 0.1
+m0_scale    = 85
+m1_scale    = 415
+p0_scale = 400
+p1_scale = 600
+
 class PointCloudFromParquetDataset(torch.utils.data.Dataset):
     '''
         Dataset to extract Point Cloud from the Parquet File. This does not load
@@ -19,6 +29,7 @@ class PointCloudFromParquetDataset(torch.utils.data.Dataset):
         point_fn='total',
         use_x_normalization=False,
         suppresion_thresh=0,
+        scale_histogram=False,
         use_pe=False,
         pe_scales=0,
         output_mean_scaling=False,
@@ -48,6 +59,7 @@ class PointCloudFromParquetDataset(torch.utils.data.Dataset):
         
         self.point_fn = point_fn
         self.use_pe = use_pe
+        self.scale_histogram = scale_histogram
         self.use_x_normalization = use_x_normalization
         self.pe_scales = pe_scales
         self.output_mean_scaling = output_mean_scaling
@@ -74,12 +86,38 @@ class PointCloudFromParquetDataset(torch.utils.data.Dataset):
         if self.use_x_normalization:
             x = normalize_x(x)
 
-        x = np.concatenate([x, pos], axis=1)
-        
         pt = row['pt'][0]
         ieta = row['ieta'][0]
         iphi = row['iphi'][0]
         m = row['m'][0]
+
+        if self.scale_histogram:
+            if self.point_fn == 'total':
+                x[:, 0] *= pt_scale
+                x[:, 1] *= dz_scale
+                x[:, 2] *= d0_scale
+                x[:, 3] *= ecal_scale
+                x[:, 4] *= hcal_scale
+                pt = (pt - p0_scale) / p1_scale
+                m = (m - m0_scale) if not self.output_mean_scaling else m
+                m = m / m1_scale if not self.output_norm_scaling else m
+                iphi = iphi / 360.
+                eta = ieta / 140.
+
+                # High value suppression
+                x[:, 1][x[:, 1] < -1] = 0
+                x[:, 1][x[:, 1] > 1] = 0
+                x[:, 2][x[:, 2] < -1] = 0
+                x[:, 2][x[:, 2] > 1] = 0
+
+                # Zero suppression
+                x[:, 0][x[:, 0] < 1e-2] = 0.
+                x[:, 3][x[:, 3] < 1e-2] = 0.
+                x[:, 4][x[:, 4] < 1e-2] = 0.
+            else:
+                raise NotImplementedError(f"Histogram scaling for {self.point_fn} is not yet supported")
+
+        x = np.concatenate([x, pos], axis=1)
 
         if self.output_mean_scaling:
             m = m - self.output_mean_value
@@ -110,6 +148,7 @@ def get_datasets(
     test_ratio,
     val_ratio,
     point_fn,
+    scale_histogram=False,
     use_pe=False,
     pe_scales=0,
     min_threshold=0.,
@@ -149,6 +188,7 @@ def get_datasets(
             PointCloudFromParquetDataset(
                 path,
                 point_fn=point_fn,
+                scale_histogram=scale_histogram,
                 use_pe=use_pe, pe_scales=pe_scales,
                 suppresion_thresh=min_threshold,
                 output_mean_scaling=output_mean_scaling, output_mean_value=output_mean_value,
