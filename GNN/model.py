@@ -108,7 +108,7 @@ def compute_degree(train_dset, k=7, device='cpu'):
     #     edge_index = torch_geometric.nn.knn_graph(data.pos, k=k, num_workers=1)
     #     d = torch_geometric.utils.degree(edge_index[1], num_nodes=data.num_nodes, dtype=torch.long)
     #     max_degree = max(max_degree, d.max())
-    max_degree = k
+    max_degree = k + 1
     deg = torch.zeros(max_degree + 1, dtype=torch.long)
     for data in tqdm(train_dset, desc='Degree Distribution'):
         data = data.to(device, non_blocking=True)
