@@ -2,6 +2,8 @@ import torch_geometric
 import torch
 from tqdm.auto import tqdm
 
+from dataset_utils import edge_features_as_R
+
 class MLPStack(torch.nn.Module):
     '''
         A simple MLP stack that stacks multiple linear-bn-act layers
@@ -31,17 +33,24 @@ class DynamicEdgeConvPN(torch.nn.Module):
     '''
         Internal convolution DynamicEdgeConv block inspired from ParticleNet
     '''
-    def __init__(self, edge_nn, nn, k=7, aggr='max', flow='source_to_target') -> None:
+    def __init__(self, edge_nn, nn, k=7, edge_feat='none', aggr='max', flow='source_to_target') -> None:
         super().__init__()
         self.nn = nn
         self.k = k
         self.edge_conv = torch_geometric.nn.EdgeConv(nn=edge_nn, aggr=aggr)
         self.flow = flow
+        self.edge_feat = edge_feat
 
     def forward(self, x, pos, batch):
         edge_index = torch_geometric.nn.knn_graph(x=pos, k=self.k, batch=batch, flow=self.flow)
+        if self.edge_feat == 'none':
+            edge_attr = None
+        elif self.edge_feat == 'R':
+            edge_attr = edge_features_as_R(pos, edge_index)
+        else:
+            raise NotImplementedError(f"Edge feat {self.edge_feat} is not implemented")
 
-        edge_out = self.edge_conv(x, edge_index)
+        edge_out = self.edge_conv(x, edge_index, edge_attr=edge_attr)
 
         x_out = self.nn(x)
 
@@ -52,7 +61,7 @@ class DGCNN(torch.nn.Module):
     '''
         DGCNN network that is similar to the ParticleNet architecture
     '''
-    def __init__(self, x_size, pos_size, k=7, use_pe=False, pe_scales=0):
+    def __init__(self, x_size, pos_size, edge_feat='none', k=7, use_pe=False, pe_scales=0):
         super().__init__()
         self.dynamic_conv_1 = DynamicEdgeConvPN(
             edge_nn=MLPStack(
@@ -61,7 +70,8 @@ class DGCNN(torch.nn.Module):
             nn=MLPStack(
                 [x_size, 32, 32, 32], bn=True, act=True
             ),
-            k=k
+            k=k,
+            edge_feat=edge_feat
         )
 
         self.dynamic_conv_2 = DynamicEdgeConvPN(
@@ -71,7 +81,8 @@ class DGCNN(torch.nn.Module):
             nn=MLPStack(
                 [32, 64, 64, 128], bn=True, act=True
             ),
-            k=k
+            k=k,
+            edge_feat=edge_feat
         )
 
     def forward(self, data):
@@ -107,9 +118,10 @@ def compute_degree(train_dset, k=7, device='cpu'):
     return deg
 
 class PNANet(torch.nn.Module):
-    def __init__(self, x_size, pos_size, deg, k=7, use_pe=False, pe_scales=0):
+    def __init__(self, x_size, pos_size, deg, edge_feat='none', k=7, use_pe=False, pe_scales=0):
         super().__init__()
         self.k = k
+        self.edge_feat = edge_feat
         aggregators = ['mean', 'min', 'max', 'std']
         scalers = ['identity', 'amplification', 'attenuation']
 
@@ -147,9 +159,15 @@ class PNANet(torch.nn.Module):
         x = data.x
 
         edge_index = torch_geometric.nn.knn_graph(x=pos, k=self.k, batch=batch)
+        if self.edge_feat == 'none':
+            edge_attr = None
+        elif self.edge_feat == 'R':
+            edge_attr = edge_features_as_R(pos, edge_index)
+        else:
+            raise NotImplementedError(f"Edge feat {self.edge_feat} is not implemented")
 
-        x_out = self.act(self.bn1(self.pna_conv_1(x, edge_index)))
-        x_out = self.act(self.bn2(self.pna_conv_2(x_out, edge_index)))
+        x_out = self.act(self.bn1(self.pna_conv_1(x, edge_index, edge_attr=edge_attr)))
+        x_out = self.act(self.bn2(self.pna_conv_2(x_out, edge_index, edge_attr=edge_attr)))
 
         x_out = torch_geometric.nn.global_mean_pool(x_out, batch) # Consider global add pool
         
@@ -160,9 +178,10 @@ class SimpleGAT(torch.nn.Module):
     '''
         Simple 2 layered GAT GNN
     '''
-    def __init__(self, x_size, pos_size, k=7, use_pe=False, pe_scales=0):
+    def __init__(self, x_size, pos_size, edge_feat='none', k=7, use_pe=False, pe_scales=0):
         super().__init__()
         self.k = k
+        self.edge_feat = edge_feat
         self.gat_conv_1 = torch_geometric.nn.GATv2Conv(
             in_channels=x_size if not use_pe else x_size * (pe_scales * 2 + 1),
             out_channels=16,
@@ -181,11 +200,17 @@ class SimpleGAT(torch.nn.Module):
         x = data.x
 
         edge_index = torch_geometric.nn.knn_graph(x=pos, k=self.k, batch=batch)
+        if self.edge_feat == 'none':
+            edge_attr = None
+        elif self.edge_feat == 'R':
+            edge_attr = edge_features_as_R(pos, edge_index)
+        else:
+            raise NotImplementedError(f"Edge feat {self.edge_feat} is not implemented")
 
         x_out = self.act(self.gat_conv_1(
-            x, edge_index))
+            x, edge_index, edge_attr=edge_attr))
         x_out = self.act(self.gat_conv_2(
-            x_out, edge_index))
+            x_out, edge_index, edge_attr=edge_attr))
 
         x_out = torch_geometric.nn.global_mean_pool(x_out, batch)
 
@@ -225,7 +250,7 @@ class RegressModel(torch.nn.Module):
         return self.out_lin(self.out_mlp(out))
 
 
-def get_model(device, model, point_fn, train_loader, pretrained=False, use_pe=False, pe_scales=0):
+def get_model(device, model, point_fn, edge_feat, train_loader, pretrained=False, use_pe=False, pe_scales=0):
     '''
         Returns the model based on the arguments
         Args:
@@ -248,14 +273,15 @@ def get_model(device, model, point_fn, train_loader, pretrained=False, use_pe=Fa
         raise NotImplementedError()
 
     if model == 'dgcnn':
-        input_model = DGCNN(x_size=x_size, pos_size=pos_size, use_pe=use_pe, pe_scales=pe_scales)
+        input_model = DGCNN(x_size=x_size, pos_size=pos_size, edge_feat=edge_feat, use_pe=use_pe, pe_scales=pe_scales)
     elif model == 'gat':
-        input_model = SimpleGAT(x_size=x_size, pos_size=pos_size,use_pe=use_pe, pe_scales=pe_scales)
+        input_model = SimpleGAT(x_size=x_size, pos_size=pos_size, edge_feat=edge_feat, use_pe=use_pe, pe_scales=pe_scales)
     elif model == 'pna':
         deg = compute_degree(train_loader, device=device)
-        input_model = PNANet(x_size, pos_size, deg, use_pe=use_pe, pe_scales=pe_scales)
+        input_model = PNANet(x_size, pos_size, deg, edge_feat=edge_feat, use_pe=use_pe, pe_scales=pe_scales)
     else:
         raise NotImplementedError(f"Model type {model} not implemented")
+
     regress_model = RegressModel(
         model=input_model,
         in_features=128,
