@@ -148,7 +148,7 @@ if __name__ == '__main__':
                         help='Whether to divide the output by normalizing constant')
     parser.add_argument('--output_norm_value', type=float, default=119.904,
                         help='The the normalizing constant to divide the output by')
-    parser.add_argument('--model', type=str, default='gat', choices=['dgcnn', 'gat', 'pna'], help='The backbone GNN to use')
+    parser.add_argument('--model', type=str, default='gat', choices=['dgcnn', 'gat', 'pna', 'gatedgcn'], help='The backbone GNN to use')
     parser.add_argument('--point_fn', type=str, default='total', choices=['total', 'channel_wise'], help='How to obtain points from the image')
     parser.add_argument('--plot', action='store_true', help='Whether to plot the predicted vs ground truth results')
     parser.add_argument('--edge_feat', type=str, default='none', choices=['none', 'R'], help='Which method to use to obtain edge_feat')

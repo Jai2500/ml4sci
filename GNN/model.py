@@ -1,4 +1,5 @@
 from tkinter.messagebox import NO
+from turtle import forward
 import torch_geometric
 import torch
 from tqdm.auto import tqdm
@@ -96,6 +97,38 @@ class DGCNN(torch.nn.Module):
 
         return x_out
 
+class GatedGCNNet(torch.nn.Module):
+    def __init__(self, x_size, pos_size, edge_feat='none', k=7, use_pe=False, pe_scales=0):
+        super().__init__()
+        self.k = k
+        self.use_pe = use_pe
+        self.gated_conv_1 = torch_geometric.nn.ResGatedGraphConv(
+            in_channels=x_size if not self.use_pe else x_size * (pe_scales * 2 + 1),
+            out_channels=64,
+        )
+        self.bn_1 = torch_geometric.nn.BatchNorm(64)
+        self.gated_conv_2 = torch_geometric.nn.ResGatedGraphConv(
+            in_channels=64,
+            out_channels=128,
+        )
+        self.bn_2 = torch_geometric.nn.BatchNorm(128)
+        self.act = torch.nn.ReLU()
+
+    def forward(self, data):
+        pos = data.pos
+        x = data.x
+        batch = data.batch
+
+        edge_index = torch_geometric.nn.knn_graph(x=pos, k=self.k, batch=batch)
+
+        x_out = self.act(self.bn_1(self.gated_conv_1(x, edge_index)))
+        x_out = self.act(self.bn_2(self.gated_conv_2(x_out, edge_index)))
+
+        x_out = torch_geometric.nn.global_mean_pool(x_out, batch)
+
+        return x_out
+
+
 def compute_degree(train_dset, k=7, device='cpu'):
     # max_degree = -1
     # for data in tqdm(train_dset, desc='Max Degree'):
@@ -110,7 +143,7 @@ def compute_degree(train_dset, k=7, device='cpu'):
         d = torch_geometric.utils.degree(edge_index[1], num_nodes=data.num_nodes, dtype=torch.long)
         deg += torch.bincount(d, minlength=deg.numel())
 
-    return deg
+    return deg # tensor([       0,        0,        0,        0,        0,        0,        0, 64694479, 23216198])
 
 class PNANet(torch.nn.Module):
     def __init__(self, x_size, pos_size, deg, edge_feat='none', k=7, use_pe=False, pe_scales=0):
@@ -292,6 +325,8 @@ def get_model(device, model, point_fn, edge_feat, train_loader, pretrained=False
     elif model == 'pna':
         deg = compute_degree(train_loader, device=device)
         input_model = PNANet(x_size, pos_size, deg, edge_feat=edge_feat, use_pe=use_pe, pe_scales=pe_scales)
+    elif model == 'gatedgcn':
+        input_model = GatedGCNNet(x_size, pos_size, edge_feat=edge_feat, use_pe=use_pe, pe_scales=pe_scales)
     else:
         raise NotImplementedError(f"Model type {model} not implemented")
 
