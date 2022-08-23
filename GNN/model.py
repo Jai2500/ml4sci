@@ -109,7 +109,7 @@ def compute_degree(train_dset, k=7, device='cpu'):
     #     d = torch_geometric.utils.degree(edge_index[1], num_nodes=data.num_nodes, dtype=torch.long)
     #     max_degree = max(max_degree, d.max())
     max_degree = k + 1
-    deg = torch.zeros(max_degree + 1, dtype=torch.long)
+    deg = torch.zeros(max_degree + 1, dtype=torch.long, device=device)
     for data in tqdm(train_dset, desc='Degree Distribution'):
         data = data.to(device, non_blocking=True)
         edge_index = torch_geometric.nn.knn_graph(data.pos, k=k, num_workers=1)
@@ -191,16 +191,26 @@ class SimpleGAT(torch.nn.Module):
         super().__init__()
         self.k = k
         self.edge_feat = edge_feat
+        if self.edge_feat == 'none':
+            edge_dim = None
+        elif self.edge_feat == 'R':
+            edge_dim = 1
+        else:
+            raise NotImplementedError(f"Edge feat {self.edge_feat} not implemented")
         self.gat_conv_1 = torch_geometric.nn.GATv2Conv(
             in_channels=x_size if not use_pe else x_size * (pe_scales * 2 + 1),
             out_channels=16,
-            heads=4
+            heads=4,
+            edge_dim=edge_dim
         )
+        self.bn_1 = torch_geometric.nn.BatchNorm(64)
         self.gat_conv_2 = torch_geometric.nn.GATv2Conv(
             in_channels=16 * 4,
             out_channels=32,
-            heads=4
+            heads=4,
+            edge_dim=edge_dim
         )
+        self.bn_2 = torch_geometric.nn.BatchNorm(128)
         self.act = torch.nn.ReLU()
 
     def forward(self, data):
@@ -216,10 +226,10 @@ class SimpleGAT(torch.nn.Module):
         else:
             raise NotImplementedError(f"Edge feat {self.edge_feat} is not implemented")
 
-        x_out = self.act(self.gat_conv_1(
-            x, edge_index, edge_attr=edge_attr))
-        x_out = self.act(self.gat_conv_2(
-            x_out, edge_index, edge_attr=edge_attr))
+        x_out = self.act(self.bn_1(self.gat_conv_1(
+            x, edge_index, edge_attr=edge_attr)))
+        x_out = self.act(self.bn_2(self.gat_conv_2(
+            x_out, edge_index, edge_attr=edge_attr)))
 
         x_out = torch_geometric.nn.global_mean_pool(x_out, batch)
 
