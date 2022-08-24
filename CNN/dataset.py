@@ -95,7 +95,8 @@ class ImageDatasetFromParquet(torch.utils.data.Dataset):
             to_return['X_jets'][3] *= ecal_scale
             to_return['X_jets'][4] *= hcal_scale
             to_return['pt'] = (to_return['pt'] - p0_scale)/p1_scale 
-            to_return['m'] = (to_return['m'] - m0_scale)/m1_scale
+            to_return['m'] = (to_return['m'] - m0_scale) if not self.output_mean_scaling else to_return['m']
+            to_return['m'] = to_return['m'] / m1_scale if not self.output_norm_scaling else to_return['m']
             to_return['iphi'] = to_return['iphi'] / 360.
             to_return['ieta'] = to_return['ieta'] / 140.
 
@@ -117,10 +118,10 @@ class ImageDatasetFromParquet(torch.utils.data.Dataset):
                     to_return[k] = positional_encoding(
                         to_return[k], self.pe_scales)
 
-        if self.output_mean_scaling and not self.scale_as_histogram:
+        if self.output_mean_scaling:
             to_return['m'] = to_return['m'] - self.output_mean_value
 
-        if self.output_norm_scaling and not self.scale_as_histogram:
+        if self.output_norm_scaling:
             to_return['m'] = to_return['m'] / self.output_norm_value
 
         return to_return

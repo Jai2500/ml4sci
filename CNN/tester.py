@@ -45,11 +45,10 @@ def test(args, model, test_loader, criterion, device, output_norm_scaling=False,
 
             out = model(X, pt, ieta, iphi)
 
-            if output_norm_scaling and not args.scale_histogram:
+            if output_norm_scaling:
                 out *= output_norm_value
                 m *= output_norm_value
-
-            if args.scale_histogram:
+            elif args.scale_histogram:
                 m = (m * m1_scale) + m0_scale
                 out = (out * m1_scale) + m1_scale
 
