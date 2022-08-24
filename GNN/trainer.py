@@ -32,7 +32,9 @@ def train(args, num_epochs, model, criterion, optimizer, scheduler, train_loader
     best_model = copy.deepcopy(model).to("cpu", non_blocking=True)
     best_val_loss = float("inf")
     val_loss_avg_meter = AverageMeter()
+    val_regress_loss_avg_meter = AverageMeter()
     val_mae_avg_meter = AverageMeter()
+    val_class_loss_avg_meter = AverageMeter()
 
     metric = torch.nn.L1Loss()
 
@@ -49,32 +51,52 @@ def train(args, num_epochs, model, criterion, optimizer, scheduler, train_loader
 
             out = model(batch)
 
-            loss = criterion(out, m.unsqueeze(-1))
+            loss_dict = {}
+            loss = 0
+
+            loss_dict['regress'] = criterion['regress'](out['regress'], m.unsqueeze(-1))
+            loss += loss_dict['regress']
 
             if args.output_norm_scaling:
                 m = m * args.output_norm_value
-                out = out * args.output_norm_value
+                out['regress'] = out['regress'] * args.output_norm_value
             elif args.scale_histogram:
                 m = m * m1_scale
-                out = out * m1_scale
+                out['regress'] = out['regress'] * m1_scale
 
             if args.output_mean_scaling:
                 m = m + args.output_mean_value
-                out = out + args.output_mean_value
+                out['regress'] = out['regress'] + args.output_mean_value
             elif args.scale_histogram:
                 m = m + m0_scale
-                out = out + m0_scale
+                out['regress'] = out['regress'] + m0_scale
 
-            mae = metric(out.detach(), m.unsqueeze(-1))
+            mae = metric(out['regress'].detach(), m.unsqueeze(-1))
+
+            postfix_dict = {
+                'regress_loss': loss_dict['regress'].item(),
+                'mae': mae.item(),           
+            }
+
+            if args.predict_bins:
+                loss_dict['class'] = criterion['class'](out['class'], batch.y_class)
+                loss += loss_dict['class']
+                postfix_dict['class_loss'] = loss_dict['class'].item()
+
+            postfix_dict['loss'] = loss.item()
             
-            tqdm_iter.set_postfix(loss=loss.item(), mae=mae.item())
+            tqdm_iter.set_postfix(postfix_dict)
             if not args.debug:
+                wandb_dict = {
+                    "train_regress_loss": loss_dict['regress'].item(),
+                    "train_loss": loss.item(),
+                    "train_mae": mae.item(),
+                    "train_step": (it * train_batch_size) + epoch * train_size,
+                }
+                if args.predict_bins:
+                    wandb_dict['train_class_loss'] = loss_dict['class'].item()
                 wandb.log(
-                    {
-                        "train_loss": loss.item(),
-                        "train_mae": mae.item(),
-                        "train_step": (it * train_batch_size) + epoch * train_size,
-                    }
+                    wandb_dict
                 )
 
             loss.backward()
@@ -87,6 +109,8 @@ def train(args, num_epochs, model, criterion, optimizer, scheduler, train_loader
         val_tqdm_iter = tqdm(val_loader, total=len(val_loader))
         val_tqdm_iter.set_description(f"Validation Epoch {epoch}")
         val_loss_avg_meter.reset()
+        val_regress_loss_avg_meter.reset()
+        val_class_loss_avg_meter.reset()
         val_mae_avg_meter.reset()
 
         for it, batch in enumerate(val_tqdm_iter):
@@ -97,42 +121,72 @@ def train(args, num_epochs, model, criterion, optimizer, scheduler, train_loader
 
                 out = model(batch)
 
-                loss = criterion(out, m.unsqueeze(-1))
+                loss_dict = {}
+                loss = 0
+
+                loss_dict['regress'] = criterion['regress'](out['regress'], m.unsqueeze(-1))
+                loss += loss_dict['regress']
 
                 if args.output_norm_scaling:
                     m = m * args.output_norm_value
-                    out = out * args.output_norm_value
+                    out['regress'] = out['regress'] * args.output_norm_value
                 elif args.scale_histogram:
                     m = m * m1_scale
-                    out = out * m1_scale
+                    out['regress'] = out['regress'] * m1_scale
 
                 if args.output_mean_scaling:
                     m = m + args.output_mean_value
-                    out = out + args.output_mean_value
+                    out['regress'] = out['regress'] + args.output_mean_value
                 elif args.scale_histogram:
                     m = m + m0_scale
-                    out = out + m0_scale
+                    out['regress'] = out['regress'] + m0_scale
 
                 mae = metric(out, m.unsqueeze(-1))
+                val_mae_avg_meter.update(mae.item(), out['regress'].size(0))
+                val_regress_loss_avg_meter.update(loss_dict['regress'].item(), out['regress'].size(0))
 
+                postfix_dict = {
+                    'regress_loss': loss_dict['regress'].item(),
+                    'mae': mae.item(),
+                    'avg_mae': val_mae_avg_meter.avg,
+                }
+
+                if args.predict_bins:
+                    loss_dict['class'] = criterion['class'](out['class'], batch.y_class)
+                    loss += loss_dict['class']
+                    postfix_dict['class_loss'] = loss_dict['class'].item()
+                    val_class_loss_avg_meter.update(loss_dict['class'].item(), out['class'].size(0))
+                
                 val_loss_avg_meter.update(loss.item(), out.size(0))
-                val_mae_avg_meter.update(mae.item(), out.size(0))
-                val_tqdm_iter.set_postfix(loss=val_loss_avg_meter.avg, mae=val_mae_avg_meter.avg)
+                postfix_dict['loss'] = loss.item()
+                postfix_dict['avg_loss'] = val_loss_avg_meter.avg
+
+                val_tqdm_iter.set_postfix(postfix_dict)
                 if not args.debug:
+                    wandb_dict = {
+                        "val_loss": loss.item(),
+                        "val_regress_loss": loss_dict['regress'].item(),
+                        "val_mae": mae.item(),
+                        "val_step": (it * val_batch_size) + epoch * val_size,
+                    }
+                    if args.predict_bins:
+                        wandb_dict['val_class_loss'] = loss_dict['class'].item()
+
                     wandb.log(
-                        {
-                            "val_loss": loss.item(),
-                            "val_mae": mae.item(),
-                            "val_step": (it * val_batch_size) + epoch * val_size,
-                        }
+                        wandb_dict
                     )
         if not args.debug:
+            wandb_dict = {
+                "avg_val_loss": val_loss_avg_meter.avg,
+                "avg_val_mae": val_mae_avg_meter.avg,
+                "avg_val_regress_loss": val_regress_loss_avg_meter.avg,
+                "val_epoch": epoch
+            }
+            if args.predict_bins:
+                wandb_dict['avg_val_class_loss'] = val_class_loss_avg_meter.avg
+
             wandb.log(
-                {
-                    "avg_val_loss": val_loss_avg_meter.avg,
-                    "avg_val_mae": val_mae_avg_meter.avg,
-                    "val_epoch": epoch
-                }
+                wandb_dict
             )
         if val_loss_avg_meter.avg < best_val_loss:
             best_model = copy.deepcopy(model).to("cpu", non_blocking=True)

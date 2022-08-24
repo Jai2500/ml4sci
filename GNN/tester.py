@@ -33,6 +33,7 @@ def test(args, model, test_loader, criterion, device, output_norm_scaling=False,
             m = batch.y
 
             out = model(batch)
+            out = out['regress']
 
             if output_norm_scaling:
                 out *= output_norm_value

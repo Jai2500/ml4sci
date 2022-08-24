@@ -40,7 +40,7 @@ def get_optimizer(model, lr, lr_step, lr_gamma):
 
     return optimizer, scheduler
 
-def get_criterion(criterion_type, beta=None):
+def get_criterion(criterion_type, beta=None, predict_bins=False):
     '''
         Returns the criterion based on the criterion_type
         Args:
@@ -50,12 +50,18 @@ def get_criterion(criterion_type, beta=None):
         Returns:
             The criterion based on the criterion_type
     '''
+    criterion_dict = {}
     if criterion_type == 'mse' or criterion_type == 'l2':
-        return torch.nn.MSELoss()
+        criterion_dict['regress'] = torch.nn.MSELoss()
     elif criterion_type == 'l1':
-        return torch.nn.L1Loss()
+        criterion_dict['regress'] = torch.nn.L1Loss()
     elif criterion_type == 'smoothl1':
-        return torch.nn.SmoothL1Loss(beta=beta)
+        criterion_dict['regress'] = torch.nn.SmoothL1Loss(beta=beta)
+    
+    if predict_bins:
+        criterion_dict['class'] = torch.nn.CrossEntropyLoss()
+    
+    return criterion_dict
 
 def get_test_metric():
     '''

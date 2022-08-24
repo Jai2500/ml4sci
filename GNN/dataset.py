@@ -30,6 +30,10 @@ class PointCloudFromParquetDataset(torch.utils.data.Dataset):
         use_x_normalization=False,
         suppresion_thresh=0,
         scale_histogram=False,
+        predict_bin=False,
+        min_mass=0,
+        max_mass=1,
+        num_bins=10,
         use_pe=False,
         pe_scales=0,
         output_mean_scaling=False,
@@ -60,12 +64,20 @@ class PointCloudFromParquetDataset(torch.utils.data.Dataset):
         self.point_fn = point_fn
         self.use_pe = use_pe
         self.scale_histogram = scale_histogram
+        self.predict_bin = predict_bin
+        self.num_bins = num_bins
         self.use_x_normalization = use_x_normalization
         self.pe_scales = pe_scales
         self.output_mean_scaling = output_mean_scaling
         self.output_mean_value = output_mean_value
         self.output_norm_scaling = output_norm_scaling
         self.output_norm_value = output_norm_value
+        
+        if self.predict_bin:
+            bin_size = (max_mass - min_mass) / num_bins
+            self.bins = [min_mass + i * bin_size for i in range(num_bins)]
+        else:
+            self.bins = None
 
     def __getitem__(self, idx, ):
         '''
@@ -125,6 +137,15 @@ class PointCloudFromParquetDataset(torch.utils.data.Dataset):
         if self.output_norm_scaling:
             m  = m / self.output_norm_value
 
+        m_class = -1
+        if self.predict_bin:
+            for it, bin_start in enumerate(self.bins):
+                if bin_start > m:
+                    m_class = it - 1
+                    break
+            if m_class == -1: #[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+                m_class = self.num_bins - 1
+
         x = torch.as_tensor(x) if not self.use_pe else positional_encoding(x, self.pe_scales)
 
         data = torch_geometric.data.Data(
@@ -134,6 +155,7 @@ class PointCloudFromParquetDataset(torch.utils.data.Dataset):
             ieta=torch.as_tensor(ieta).unsqueeze(-1),
             iphi=torch.as_tensor(iphi).unsqueeze(-1),
             y=torch.as_tensor(m),
+            y_class = m_class if self.predict_bins else None
         )
 
         return data
@@ -149,6 +171,10 @@ def get_datasets(
     val_ratio,
     point_fn,
     scale_histogram=False,
+    predict_bins=False,
+    min_mass=0,
+    max_mass=1,
+    num_bins=10,
     use_pe=False,
     pe_scales=0,
     min_threshold=0.,
@@ -189,6 +215,7 @@ def get_datasets(
                 path,
                 point_fn=point_fn,
                 scale_histogram=scale_histogram,
+                predict_bins=predict_bins, min_mass=min_mass, max_mass=max_mass, num_bins=num_bins,
                 use_pe=use_pe, pe_scales=pe_scales,
                 suppresion_thresh=min_threshold,
                 output_mean_scaling=output_mean_scaling, output_mean_value=output_mean_value,

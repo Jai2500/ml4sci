@@ -153,6 +153,10 @@ if __name__ == '__main__':
     parser.add_argument('--plot', action='store_true', help='Whether to plot the predicted vs ground truth results')
     parser.add_argument('--edge_feat', type=str, default='none', choices=['none', 'R'], help='Which method to use to obtain edge_feat')
     parser.add_argument('--scale_histogram', action='store_true', help='Whether to scale based on histogram scales provided')
+    parser.add_argument('--predict_bins', action='store_true', help='Whether to also predict a binned mass')
+    parser.add_argument('--min_mass', type=float, default=0., help='Minimum mass of the output')
+    parser.add_argument('--max_mass', type=float, default=0., help='Maximum mass of the output')
+    parser.add_argument('--num_bins', type=int, default=10, help='Number of bins for binning the output mass')
     parser.add_argument('--debug', action='store_true')
     args = parser.parse_args()
 
@@ -162,6 +166,10 @@ if __name__ == '__main__':
         args.test_ratio,
         args.val_ratio,
         scale_histogram=args.scale_histogram,
+        predict_bins=args.predict_bins,
+        min_mass=args.min_mass,
+        max_mass=args.max_mass,
+        num_bins=args.num_bins,
         point_fn=args.point_fn,
         use_pe=args.use_pe,
         pe_scales=args.num_pe_scales,
@@ -176,11 +184,11 @@ if __name__ == '__main__':
         train_dset, val_dset, test_dset, args.train_batch_size, args.val_batch_size, args.test_batch_size)
 
     model = get_model(args.device, model=args.model, edge_feat=args.edge_feat, train_loader=train_loader, point_fn=args.point_fn, pretrained=args.pretrained,
-                      use_pe=args.use_pe, pe_scales=args.num_pe_scales)
+                      use_pe=args.use_pe, pe_scales=args.num_pe_scales, predict_bins=args.predict_bins, num_bins=args.num_bins)
     optimizer, scheduler = get_optimizer(
         model, args.lr, args.lr_step, args.lr_gamma)
 
-    criterion = get_criterion(args.criterion_type, beta=args.criterion_beta)
+    criterion = get_criterion(args.criterion_type, beta=args.criterion_beta, predict_bins=args.predict_bins)
     test_metric = get_test_metric()
 
     model = main(

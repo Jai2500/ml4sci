@@ -268,7 +268,7 @@ class RegressModel(torch.nn.Module):
         Model to perform the regression on the data. 
         Builds a small MLP network on a provided backbone network.
     '''
-    def __init__(self, model, in_features, use_pe=False, pe_scales=0):
+    def __init__(self, model, in_features, use_pe=False, pe_scales=0, predict_bins=False, num_bins=10):
         '''
             Init fn. of the RegressModel.
             Args:
@@ -279,24 +279,38 @@ class RegressModel(torch.nn.Module):
         '''
         super().__init__()
         self.model = model
-
+        self.predict_bins = predict_bins
 
         self.out_mlp = MLPStack(
             [in_features + 3, in_features * 2, in_features * 2, in_features, in_features // 2],
             bn=True, act=True
         )
 
-        self.out_lin = torch.nn.Linear(in_features//2, 1)
+        self.out_regress = torch.nn.Linear(in_features//2, 1)
+
+        if self.predict_bins:
+            self.out_pred = torch.nn.Linear(in_features // 2, num_bins)
 
     def forward(self, data):
+        return_dict = {}
+
         out = self.model(data)
         out = torch.cat(
             [out, data.pt.unsqueeze(-1), data.ieta.unsqueeze(-1), data.iphi.unsqueeze(-1)], dim=1
         )
-        return self.out_lin(self.out_mlp(out))
+        out = self.out_mlp(out)
+        regress_out = self.out_regress(out)
+
+        return_dict['regress'] = regress_out
+        
+        if self.predict_bins:
+            pred_out = self.out_pred(out)
+            return_dict['class'] = pred_out
+
+        return return_dict
 
 
-def get_model(device, model, point_fn, edge_feat, train_loader, pretrained=False, use_pe=False, pe_scales=0):
+def get_model(device, model, point_fn, edge_feat, train_loader, pretrained=False, use_pe=False, pe_scales=0, predict_bins=False, num_bins=10):
     '''
         Returns the model based on the arguments
         Args:
@@ -334,7 +348,9 @@ def get_model(device, model, point_fn, edge_feat, train_loader, pretrained=False
         model=input_model,
         in_features=128,
         use_pe=use_pe,
-        pe_scales=pe_scales
+        pe_scales=pe_scales,
+        predict_bins=predict_bins,
+        num_bins=num_bins,
     )
 
     regress_model = regress_model.to(device)
