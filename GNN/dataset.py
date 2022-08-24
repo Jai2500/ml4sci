@@ -30,7 +30,7 @@ class PointCloudFromParquetDataset(torch.utils.data.Dataset):
         use_x_normalization=False,
         suppresion_thresh=0,
         scale_histogram=False,
-        predict_bin=False,
+        predict_bins=False,
         min_mass=0,
         max_mass=1,
         num_bins=10,
@@ -64,7 +64,7 @@ class PointCloudFromParquetDataset(torch.utils.data.Dataset):
         self.point_fn = point_fn
         self.use_pe = use_pe
         self.scale_histogram = scale_histogram
-        self.predict_bin = predict_bin
+        self.predict_bins = predict_bins
         self.num_bins = num_bins
         self.use_x_normalization = use_x_normalization
         self.pe_scales = pe_scales
@@ -73,7 +73,7 @@ class PointCloudFromParquetDataset(torch.utils.data.Dataset):
         self.output_norm_scaling = output_norm_scaling
         self.output_norm_value = output_norm_value
         
-        if self.predict_bin:
+        if self.predict_bins:
             bin_size = (max_mass - min_mass) / num_bins
             self.bins = [min_mass + i * bin_size for i in range(num_bins)]
         else:
@@ -138,7 +138,7 @@ class PointCloudFromParquetDataset(torch.utils.data.Dataset):
             m  = m / self.output_norm_value
 
         m_class = -1
-        if self.predict_bin:
+        if self.predict_bins:
             for it, bin_start in enumerate(self.bins):
                 if bin_start > m:
                     m_class = it - 1
