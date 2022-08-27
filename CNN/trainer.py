@@ -148,6 +148,20 @@ def train(args, num_epochs, model, criterion, optimizer, scheduler, train_loader
                         }
                     )
 
+        if not args.debug:
+            wandb_dict = {
+                "avg_val_loss": val_loss_avg_meter.avg,
+                "avg_val_mae": val_mae_avg_meter.avg,
+                "val_epoch": epoch
+            }
+
+            wandb_dict['lr'] = optimizer.param_groups[0]['lr']
+
+            wandb.log(
+                wandb_dict
+            )
+
+
         if val_loss_avg_meter.avg < best_val_loss:
             best_model = copy.deepcopy(model).to("cpu", non_blocking=True)
             best_val_loss = val_loss_avg_meter.avg
