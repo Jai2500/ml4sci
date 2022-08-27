@@ -155,9 +155,12 @@ if __name__ == '__main__':
     parser.add_argument('--scale_histogram', action='store_true', help='Whether to scale based on histogram scales provided')
     parser.add_argument('--predict_bins', action='store_true', help='Whether to also predict a binned mass')
     parser.add_argument('--min_mass', type=float, default=0., help='Minimum mass of the output')
-    parser.add_argument('--max_mass', type=float, default=0., help='Maximum mass of the output')
+    parser.add_argument('--max_mass', type=float, default=1., help='Maximum mass of the output')
     parser.add_argument('--num_bins', type=int, default=10, help='Number of bins for binning the output mass')
     parser.add_argument('--debug', action='store_true')
+    parser.add_argument('--sched_type', type=str, default='step', choices=['step', 'ca_wm'], help='Which type of scheduler to use')
+    parser.add_argument('--min_lr', type=float, default=1e-7, help='Minimum LR for the cosine annealing LR scheduler')
+    parser.add_argument('--T_0', type=int, default=5, help='Number of iterations for the first restart')
     args = parser.parse_args()
 
     train_dset, val_dset, test_dset, train_size, val_size, test_size = get_datasets(
@@ -186,7 +189,7 @@ if __name__ == '__main__':
     model = get_model(args.device, model=args.model, edge_feat=args.edge_feat, train_loader=train_loader, point_fn=args.point_fn, pretrained=args.pretrained,
                       use_pe=args.use_pe, pe_scales=args.num_pe_scales, predict_bins=args.predict_bins, num_bins=args.num_bins)
     optimizer, scheduler = get_optimizer(
-        model, args.lr, args.lr_step, args.lr_gamma)
+        model, args.lr, args.sched_type, args.lr_step, args.lr_gamma, args.min_lr, args.T_0)
 
     criterion = get_criterion(args.criterion_type, beta=args.criterion_beta, predict_bins=args.predict_bins)
     test_metric = get_test_metric()

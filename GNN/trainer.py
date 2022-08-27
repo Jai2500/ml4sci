@@ -141,7 +141,7 @@ def train(args, num_epochs, model, criterion, optimizer, scheduler, train_loader
                     m = m + m0_scale
                     out['regress'] = out['regress'] + m0_scale
 
-                mae = metric(out, m.unsqueeze(-1))
+                mae = metric(out['regress'], m.unsqueeze(-1))
                 val_mae_avg_meter.update(mae.item(), out['regress'].size(0))
                 val_regress_loss_avg_meter.update(loss_dict['regress'].item(), out['regress'].size(0))
 

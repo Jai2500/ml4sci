@@ -155,6 +155,9 @@ if __name__ == '__main__':
     parser.add_argument('--scale_histogram', action='store_true', help='Whether to scale as histograms')
     parser.add_argument('--plot', action='store_true', help='Whether to scatter plot prediction vs ground truth')
     parser.add_argument('--debug', action='store_true')
+    parser.add_argument('--sched_type', type=str, default='step', choices=['step', 'ca_wm'], help='Which type of scheduler to use')
+    parser.add_argument('--min_lr', type=float, default=1e-7, help='Minimum LR for the cosine annealing LR scheduler')
+    parser.add_argument('--T_0', type=int, default=5, help='Number of iterations for the first restart')
     args = parser.parse_args()
 
     dset_transforms = get_transforms()
@@ -181,7 +184,7 @@ if __name__ == '__main__':
     model = get_model(args.device, model=args.model, pretrained=args.pretrained,
                       use_pe=args.use_pe, pe_scales=args.num_pe_scales)
     optimizer, scheduler = get_optimizer(
-        model, args.lr, args.lr_step, args.lr_gamma)
+        model, args.lr, args.sched_type, args.lr_step, args.lr_gamma, args.min_lr, args.T_0)
 
     criterion = get_criterion(args.criterion_type, beta=args.criterion_beta)
     test_metric = get_test_metric()

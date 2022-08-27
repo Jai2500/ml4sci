@@ -22,7 +22,7 @@ class AverageMeter(object):
         self.count += n
         self.avg = self.sum / self.count
 
-def get_optimizer(model, lr, lr_step, lr_gamma):
+def get_optimizer(model, lr, sched_type='step', lr_step=None, lr_gamma=None, min_lr=None, T_0=None):
     '''
         Returns the optimizer and the scheduler for the model
         Args:
@@ -36,7 +36,12 @@ def get_optimizer(model, lr, lr_step, lr_gamma):
             scheduler: The scheduler for the optimizer
     '''
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-    scheduler = torch.optim.lr_scheduler.StepLR(optimizer,step_size=lr_step, gamma=lr_gamma)
+    if sched_type == 'step':
+        assert lr_step is not None and lr_gamma is not None, "lr_step and lr_gamma must be provided if sched_type is stepLR"
+        scheduler = torch.optim.lr_scheduler.StepLR(optimizer,step_size=lr_step, gamma=lr_gamma)
+    elif sched_type == 'ca_wm':
+        assert T_0 is not None, "T_0 must be provieedd for cosine annealing LR"
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0, eta_min=lr, eta_min=min_lr, T_mult=1)
 
     return optimizer, scheduler
 
