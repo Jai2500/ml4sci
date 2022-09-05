@@ -34,12 +34,18 @@ def train(args, num_epochs, model, criterion, optimizer, scheduler, train_loader
     val_loss_avg_meter = AverageMeter()
     val_mae_avg_meter = AverageMeter()
 
+    train_loss_avg_meter = AverageMeter()
+    train_mae_avg_meter = AverageMeter()
+
     metric = torch.nn.L1Loss()
 
     for epoch in range(num_epochs):
         model.train()
         tqdm_iter = tqdm(train_loader, total=len(train_loader))
         tqdm_iter.set_description(f"Epoch {epoch}")
+
+        train_mae_avg_meter.reset()
+        train_loss_avg_meter.reset()
 
         for it, batch in enumerate(tqdm_iter):
             optimizer.zero_grad()
@@ -69,7 +75,7 @@ def train(args, num_epochs, model, criterion, optimizer, scheduler, train_loader
                 m = (m * m1_scale) 
                 out = out * m1_scale
 
-            if args.output_mean_scaling and not args.scale_histogram:
+            if args.output_mean_scaling:
                 m = m + args.output_mean_value
                 out = out + args.output_mean_value
             elif args.scale_histogram:
@@ -77,6 +83,10 @@ def train(args, num_epochs, model, criterion, optimizer, scheduler, train_loader
                 out = out + m0_scale
 
             mae = metric(out.detach(), m.unsqueeze(-1))
+
+
+            train_loss_avg_meter.update(loss.item(), n=out.size(0))
+            train_mae_avg_meter.update(mae.item(), n=out.size(0))
             
             tqdm_iter.set_postfix(loss=loss.item(), mae=mae.item())
             if not args.debug:
@@ -93,6 +103,17 @@ def train(args, num_epochs, model, criterion, optimizer, scheduler, train_loader
 
             if args.plot and (it * train_batch_size) % 1000 == 0:
                 plot_(out, m, str((it * train_batch_size) + epoch * train_size))
+
+        if not args.debug:
+            wandb_dict = {
+                "avg_train_loss": train_loss_avg_meter.avg,
+                "avg_train_mae": train_mae_avg_meter.avg,
+                "train_epoch": epoch
+            }
+
+            wandb.log(
+                wandb_dict
+            )
 
         model.eval()
         val_tqdm_iter = tqdm(val_loader, total=len(val_loader))

@@ -48,13 +48,13 @@ def get_loaders(train_dset, val_dset, test_dset, train_batch_size, val_batch_siz
             test_loader: Test dataset data loader
     '''
     train_loader = torch.utils.data.DataLoader(
-        train_dset, shuffle=True, batch_size=train_batch_size, pin_memory=True
+        train_dset, shuffle=True, batch_size=train_batch_size, pin_memory=True, num_workers=0
     )
     val_loader = torch.utils.data.DataLoader(
-        val_dset, shuffle=False, batch_size=val_batch_size, pin_memory=True
+        val_dset, shuffle=False, batch_size=val_batch_size, pin_memory=True, num_workers=0
     )
     test_loader = torch.utils.data.DataLoader(
-        test_dset, shuffle=False, batch_size=test_batch_size
+        test_dset, shuffle=False, batch_size=test_batch_size, num_workers=0
     )
     return train_loader, val_loader, test_loader
 

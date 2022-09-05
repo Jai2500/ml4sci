@@ -182,6 +182,7 @@ def train(args, num_epochs, model, criterion, optimizer, scheduler, train_loader
                 "avg_val_regress_loss": val_regress_loss_avg_meter.avg,
                 "val_epoch": epoch
             }
+            wandb_dict['lr'] = optimizer.param_groups[0]['lr']
             if args.predict_bins:
                 wandb_dict['avg_val_class_loss'] = val_class_loss_avg_meter.avg
 
