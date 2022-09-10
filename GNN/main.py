@@ -161,9 +161,16 @@ if __name__ == '__main__':
     parser.add_argument('--sched_type', type=str, default='step', choices=['step', 'ca_wm'], help='Which type of scheduler to use')
     parser.add_argument('--min_lr', type=float, default=1e-7, help='Minimum LR for the cosine annealing LR scheduler')
     parser.add_argument('--T_0', type=int, default=5, help='Number of iterations for the first restart')
+    parser.add_argument('--LapPE', action='store_true', help='Whether to use the Laplacian PE encoding transform')
+    parser.add_argument('--LapPEnorm', default=None, choices=['sym', 'rw', None])
+    parser.add_argument('--LapPEmax_freq', type=int, default=10, help='Maximum number of top smallest frequencies / eigenvecs to use')
+    parser.add_argument('--LapPEeig_norm', default='L2', help='Normalization for the eigen vectors of the Laplacian')
+    parser.add_argument('--RWSE', action='store_true', help='Whether to perform the Random Walk Encoding Transform')
+    parser.add_argument('--RWSEkernel_times', default=[2, 3, 5, 7, 10], help='List of k-steps for which to compute the RW landings')
     args = parser.parse_args()
 
     train_dset, val_dset, test_dset, train_size, val_size, test_size = get_datasets(
+        args,
         args.data_dir,
         args.num_files,
         args.test_ratio,
@@ -186,7 +193,7 @@ if __name__ == '__main__':
     train_loader, val_loader, test_loader = get_loaders(
         train_dset, val_dset, test_dset, args.train_batch_size, args.val_batch_size, args.test_batch_size)
 
-    model = get_model(args.device, model=args.model, edge_feat=args.edge_feat, train_loader=train_loader, point_fn=args.point_fn, pretrained=args.pretrained,
+    model = get_model(args, args.device, model=args.model, edge_feat=args.edge_feat, train_loader=train_loader, point_fn=args.point_fn, pretrained=args.pretrained,
                       use_pe=args.use_pe, pe_scales=args.num_pe_scales, predict_bins=args.predict_bins, num_bins=args.num_bins)
     optimizer, scheduler = get_optimizer(
         model, args.lr, args.sched_type, args.lr_step, args.lr_gamma, args.min_lr, args.T_0)

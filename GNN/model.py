@@ -57,8 +57,9 @@ class DGCNN(torch.nn.Module):
     '''
         DGCNN network that is similar to the ParticleNet architecture
     '''
-    def __init__(self, x_size, pos_size, edge_feat='none', k=7, use_pe=False, pe_scales=0):
+    def __init__(self, args, x_size, pos_size, edge_feat='none', k=7, use_pe=False, pe_scales=0):
         super().__init__()
+        self.args = args
         self.dynamic_conv_1 = DynamicEdgeConvPN(
             edge_nn=MLPStack(
                 [x_size * 2 if not use_pe else x_size * 2 * (pe_scales * 2 + 1), 32, 32, 32], bn=True, act=True
@@ -98,12 +99,14 @@ class DGCNN(torch.nn.Module):
         return x_out
 
 class GatedGCNNet(torch.nn.Module):
-    def __init__(self, x_size, pos_size, edge_feat='none', k=7, use_pe=False, pe_scales=0):
+    def __init__(self, args, x_size, pos_size, edge_feat='none', k=7, use_pe=False, pe_scales=0):
         super().__init__()
         self.k = k
         self.use_pe = use_pe
+        self.args = args
+        input_size = x_size if not self.use_pe else x_size * (pe_scales * 2 + 1)
         self.gated_conv_1 = torch_geometric.nn.ResGatedGraphConv(
-            in_channels=x_size if not self.use_pe else x_size * (pe_scales * 2 + 1),
+            in_channels=input_size,
             out_channels=64,
         )
         self.bn_1 = torch_geometric.nn.BatchNorm(64)
@@ -146,10 +149,11 @@ def compute_degree(train_dset, k=7, device='cpu'):
     return deg # tensor([       0,        0,        0,        0,        0,        0,        0, 64694479, 23216198])
 
 class PNANet(torch.nn.Module):
-    def __init__(self, x_size, pos_size, deg, edge_feat='none', k=7, use_pe=False, pe_scales=0):
+    def __init__(self, args, x_size, pos_size, deg, edge_feat='none', k=7, use_pe=False, pe_scales=0):
         super().__init__()
         self.k = k
         self.edge_feat = edge_feat
+        self.args = args
         if self.edge_feat == 'none':
             edge_dim = None
         elif self.edge_feat == 'R':
@@ -214,10 +218,11 @@ class SimpleGAT(torch.nn.Module):
     '''
         Simple 2 layered GAT GNN
     '''
-    def __init__(self, x_size, pos_size, edge_feat='none', k=7, use_pe=False, pe_scales=0):
+    def __init__(self, args, x_size, pos_size, edge_feat='none', k=7, use_pe=False, pe_scales=0):
         super().__init__()
         self.k = k
         self.edge_feat = edge_feat
+        self.args = args
         if self.edge_feat == 'none':
             edge_dim = None
         elif self.edge_feat == 'R':
@@ -310,10 +315,11 @@ class RegressModel(torch.nn.Module):
         return return_dict
 
 
-def get_model(device, model, point_fn, edge_feat, train_loader, pretrained=False, use_pe=False, pe_scales=0, predict_bins=False, num_bins=10):
+def get_model(args, device, model, point_fn, edge_feat, train_loader, pretrained=False, use_pe=False, pe_scales=0, predict_bins=False, num_bins=10):
     '''
         Returns the model based on the arguments
         Args:
+            args: The argparse argument
             device: The device to run the model on
             model: The backbone model choice
             pretrained: Whether to use the pretrained backbone
@@ -332,15 +338,20 @@ def get_model(device, model, point_fn, edge_feat, train_loader, pretrained=False
     else:
         raise NotImplementedError()
 
+    if args.LapPE:
+        x_size += (args.LapPEmax_freq * 2)
+    if args.RWSE:
+        x_size += len(args.RWSEkernel_times)
+
     if model == 'dgcnn':
-        input_model = DGCNN(x_size=x_size, pos_size=pos_size, edge_feat=edge_feat, use_pe=use_pe, pe_scales=pe_scales)
+        input_model = DGCNN(args, x_size=x_size, pos_size=pos_size, edge_feat=edge_feat, use_pe=use_pe, pe_scales=pe_scales)
     elif model == 'gat':
-        input_model = SimpleGAT(x_size=x_size, pos_size=pos_size, edge_feat=edge_feat, use_pe=use_pe, pe_scales=pe_scales)
+        input_model = SimpleGAT(args, x_size=x_size, pos_size=pos_size, edge_feat=edge_feat, use_pe=use_pe, pe_scales=pe_scales)
     elif model == 'pna':
         deg = compute_degree(train_loader, device=device)
-        input_model = PNANet(x_size, pos_size, deg, edge_feat=edge_feat, use_pe=use_pe, pe_scales=pe_scales)
+        input_model = PNANet(args, x_size, pos_size, deg, edge_feat=edge_feat, use_pe=use_pe, pe_scales=pe_scales)
     elif model == 'gatedgcn':
-        input_model = GatedGCNNet(x_size, pos_size, edge_feat=edge_feat, use_pe=use_pe, pe_scales=pe_scales)
+        input_model = GatedGCNNet(args, x_size, pos_size, edge_feat=edge_feat, use_pe=use_pe, pe_scales=pe_scales)
     else:
         raise NotImplementedError(f"Model type {model} not implemented")
 

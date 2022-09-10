@@ -5,6 +5,7 @@ import torch_geometric
 import glob
 import os
 from tqdm.auto import tqdm
+from transforms import compute_enc_transform
 from dataset_utils import normalize_x, points_all_channels, points_channel_wise, positional_encoding
 
 hcal_scale  = 1
@@ -25,6 +26,7 @@ class PointCloudFromParquetDataset(torch.utils.data.Dataset):
     '''
     def __init__(
         self,
+        args,
         filename,
         point_fn='total',
         use_x_normalization=False,
@@ -58,6 +60,7 @@ class PointCloudFromParquetDataset(torch.utils.data.Dataset):
         '''
         super().__init__()
 
+        self.args = args
         self.file = pq.ParquetFile(filename)
         self.suppression_thresh = suppresion_thresh
         
@@ -146,6 +149,16 @@ class PointCloudFromParquetDataset(torch.utils.data.Dataset):
             if m_class == -1: #[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
                 m_class = self.num_bins - 1
 
+        if args.LapPE or args.RWSE:
+            edge_index = torch_geometric.nn.knn_graph(x=pos, k=7, num_workers=0)
+
+        transforms = compute_enc_transform(x, edge_index, self.args)
+
+        if self.args.LapPE:
+            x = torch.cat([x, transforms['eigvecs'], transforms['eigvals'].squeeze(-1)], dim=-1)
+        if self.args.RWSE:
+            x = torch.cat([x, transforms['rwse']], dim=-1)
+
         x = torch.as_tensor(x) if not self.use_pe else positional_encoding(x, self.pe_scales)
 
         data = torch_geometric.data.Data(
@@ -165,6 +178,7 @@ class PointCloudFromParquetDataset(torch.utils.data.Dataset):
 
 
 def get_datasets(
+    args,
     root_dir,
     num_files,
     test_ratio,
@@ -186,6 +200,7 @@ def get_datasets(
     '''
         Returns the datasets provided the root directory of the multiple parquet files.
         Args:
+            args: The argparse object
             root_dir: The root directory containing all the parquet files
             num_files: The number of files to be read
             test_ratio: The ratio of the dataset to be used as the test dataset
@@ -212,6 +227,7 @@ def get_datasets(
     for path in tqdm(paths[0:num_files]):
         dsets.append(
             PointCloudFromParquetDataset(
+                args,
                 path,
                 point_fn=point_fn,
                 scale_histogram=scale_histogram,
