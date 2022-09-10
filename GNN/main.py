@@ -168,6 +168,7 @@ if __name__ == '__main__':
     parser.add_argument('--LapPEeig_norm', default='L2', help='Normalization for the eigen vectors of the Laplacian')
     parser.add_argument('--RWSE', action='store_true', help='Whether to perform the Random Walk Encoding Transform')
     parser.add_argument('--RWSEkernel_times', default=[2, 3, 5, 7, 10], help='List of k-steps for which to compute the RW landings')
+    parser.add_argument('--save_data', action='store_true', help='Whether to store the data object for each sample')
     args = parser.parse_args()
 
     train_dset, val_dset, test_dset, train_size, val_size, test_size = get_datasets(

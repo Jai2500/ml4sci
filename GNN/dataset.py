@@ -27,6 +27,7 @@ class PointCloudFromParquetDataset(torch.utils.data.Dataset):
     def __init__(
         self,
         args,
+        id,
         filename,
         point_fn='total',
         use_x_normalization=False,
@@ -61,9 +62,12 @@ class PointCloudFromParquetDataset(torch.utils.data.Dataset):
         super().__init__()
 
         self.args = args
+        self.id = id
         self.file = pq.ParquetFile(filename)
-        self.suppression_thresh = suppresion_thresh
+        self.root_dir = self.args.data_dir
+        self.save_data = self.args.save_data
         
+        self.suppression_thresh = suppresion_thresh
         self.point_fn = point_fn
         self.use_pe = use_pe
         self.scale_histogram = scale_histogram
@@ -87,89 +91,96 @@ class PointCloudFromParquetDataset(torch.utils.data.Dataset):
             __getitem__ function of a Pytorch dataset. 
             Returns the traning element. 
         '''
-        row = self.file.read_row_group(idx).to_pydict()
-        
-        arr = np.array(row['X_jet'][0])
-        
-        if self.point_fn == 'total':
-            x, pos = points_all_channels(arr, self.suppression_thresh)
-        elif self.point_fn == 'channel_wise':
-            x, pos = points_channel_wise(arr, self.suppression_thresh)
+        if self.save_data and os.path.exists(os.path.join(self.root_dir, f'{self.id}_{idx}.pt')):
+            data = torch.load(os.path.join(self.root_dir, f'{self.id}_{idx}.pt'))
         else:
-            raise NotImplementedError(f"No function for {self.point_fn}")
-        
-        if self.use_x_normalization:
-            x = normalize_x(x)
-
-        pt = row['pt'][0]
-        ieta = row['ieta'][0]
-        iphi = row['iphi'][0]
-        m = row['m'][0]
-
-        if self.scale_histogram:
+            row = self.file.read_row_group(idx).to_pydict()
+            
+            arr = np.array(row['X_jet'][0])
+            
             if self.point_fn == 'total':
-                x[:, 0] *= pt_scale
-                x[:, 1] *= dz_scale
-                x[:, 2] *= d0_scale
-                x[:, 3] *= ecal_scale
-                x[:, 4] *= hcal_scale
-                pt = (pt - p0_scale) / p1_scale
-                m = (m - m0_scale) if not self.output_mean_scaling else m
-                m = m / m1_scale if not self.output_norm_scaling else m
-                iphi = iphi / 360.
-                eta = ieta / 140.
-
-                # High value suppression
-                x[:, 1][x[:, 1] < -1] = 0
-                x[:, 1][x[:, 1] > 1] = 0
-                x[:, 2][x[:, 2] < -1] = 0
-                x[:, 2][x[:, 2] > 1] = 0
-
-                # Zero suppression
-                x[:, 0][x[:, 0] < 1e-2] = 0.
-                x[:, 3][x[:, 3] < 1e-2] = 0.
-                x[:, 4][x[:, 4] < 1e-2] = 0.
+                x, pos = points_all_channels(arr, self.suppression_thresh)
+            elif self.point_fn == 'channel_wise':
+                x, pos = points_channel_wise(arr, self.suppression_thresh)
             else:
-                raise NotImplementedError(f"Histogram scaling for {self.point_fn} is not yet supported")
+                raise NotImplementedError(f"No function for {self.point_fn}")
+            
+            if self.use_x_normalization:
+                x = normalize_x(x)
 
-        x = np.concatenate([x, pos], axis=1)
+            pt = row['pt'][0]
+            ieta = row['ieta'][0]
+            iphi = row['iphi'][0]
+            m = row['m'][0]
 
-        if self.output_mean_scaling:
-            m = m - self.output_mean_value
-        
-        if self.output_norm_scaling:
-            m  = m / self.output_norm_value
+            if self.scale_histogram:
+                if self.point_fn == 'total':
+                    x[:, 0] *= pt_scale
+                    x[:, 1] *= dz_scale
+                    x[:, 2] *= d0_scale
+                    x[:, 3] *= ecal_scale
+                    x[:, 4] *= hcal_scale
+                    pt = (pt - p0_scale) / p1_scale
+                    m = (m - m0_scale) if not self.output_mean_scaling else m
+                    m = m / m1_scale if not self.output_norm_scaling else m
+                    iphi = iphi / 360.
+                    eta = ieta / 140.
 
-        m_class = -1
-        if self.predict_bins:
-            for it, bin_start in enumerate(self.bins):
-                if bin_start > m:
-                    m_class = it - 1
-                    break
-            if m_class == -1: #[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-                m_class = self.num_bins - 1
+                    # High value suppression
+                    x[:, 1][x[:, 1] < -1] = 0
+                    x[:, 1][x[:, 1] > 1] = 0
+                    x[:, 2][x[:, 2] < -1] = 0
+                    x[:, 2][x[:, 2] > 1] = 0
 
-        if self.args.LapPE or self.args.RWSE:
-            edge_index = torch_geometric.nn.knn_graph(x=pos, k=7, num_workers=0)
+                    # Zero suppression
+                    x[:, 0][x[:, 0] < 1e-2] = 0.
+                    x[:, 3][x[:, 3] < 1e-2] = 0.
+                    x[:, 4][x[:, 4] < 1e-2] = 0.
+                else:
+                    raise NotImplementedError(f"Histogram scaling for {self.point_fn} is not yet supported")
 
-        transforms = compute_enc_transform(x, edge_index, self.args)
+            x = np.concatenate([x, pos], axis=1)
 
-        if self.args.LapPE:
-            x = torch.cat([x, transforms['eigvecs'], transforms['eigvals'].squeeze(-1)], dim=-1)
-        if self.args.RWSE:
-            x = torch.cat([x, transforms['rwse']], dim=-1)
+            if self.output_mean_scaling:
+                m = m - self.output_mean_value
+            
+            if self.output_norm_scaling:
+                m  = m / self.output_norm_value
 
-        x = torch.as_tensor(x) if not self.use_pe else positional_encoding(x, self.pe_scales)
+            m_class = -1
+            if self.predict_bins:
+                for it, bin_start in enumerate(self.bins):
+                    if bin_start > m:
+                        m_class = it - 1
+                        break
+                if m_class == -1: #[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+                    m_class = self.num_bins - 1
 
-        data = torch_geometric.data.Data(
-            pos=torch.as_tensor(pos).float(),
-            x=x.float(),
-            pt=torch.as_tensor(pt).unsqueeze(-1),
-            ieta=torch.as_tensor(ieta).unsqueeze(-1),
-            iphi=torch.as_tensor(iphi).unsqueeze(-1),
-            y=torch.as_tensor(m),
-            y_class = m_class if self.predict_bins else None
-        )
+            pos = torch.as_tensor(pos, dtype=torch.float)
+            x = torch.as_tensor(x)
+            if self.args.LapPE or self.args.RWSE:
+                edge_index = torch_geometric.nn.knn_graph(x=pos, k=7, num_workers=0)
+                transforms = compute_enc_transform(x, edge_index, self.args)
+
+            if self.args.LapPE:
+                x = torch.cat([x, transforms['eigvecs'], transforms['eigvals'].squeeze(-1)], dim=-1)
+            if self.args.RWSE:
+                x = torch.cat([x, transforms['rwse']], dim=-1)
+
+            x =  x if not self.use_pe else positional_encoding(x, self.pe_scales)
+
+            data = torch_geometric.data.Data(
+                pos=pos.float(),
+                x=x.float(),
+                pt=torch.as_tensor(pt).unsqueeze(-1),
+                ieta=torch.as_tensor(ieta).unsqueeze(-1),
+                iphi=torch.as_tensor(iphi).unsqueeze(-1),
+                y=torch.as_tensor(m),
+                y_class = m_class if self.predict_bins else None
+            )
+
+            if self.save_data:
+                torch.save(data, os.path.join(self.root_dir, f'{self.id}_{idx}.pt'))
 
         return data
 
@@ -224,10 +235,11 @@ def get_datasets(
     paths = list(glob.glob(os.path.join(root_dir, "*.parquet")))
 
     dsets = []
-    for path in tqdm(paths[0:num_files]):
+    for it,path in enumerate(tqdm(paths[0:num_files])):
         dsets.append(
             PointCloudFromParquetDataset(
                 args,
+                it,
                 path,
                 point_fn=point_fn,
                 scale_histogram=scale_histogram,
