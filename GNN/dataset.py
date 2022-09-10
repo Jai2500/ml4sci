@@ -149,7 +149,7 @@ class PointCloudFromParquetDataset(torch.utils.data.Dataset):
             if m_class == -1: #[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
                 m_class = self.num_bins - 1
 
-        if args.LapPE or args.RWSE:
+        if self.args.LapPE or self.args.RWSE:
             edge_index = torch_geometric.nn.knn_graph(x=pos, k=7, num_workers=0)
 
         transforms = compute_enc_transform(x, edge_index, self.args)

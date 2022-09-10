@@ -22,7 +22,7 @@ class AverageMeter(object):
         self.count += n
         self.avg = self.sum / self.count
 
-def get_optimizer(model, lr, sched_type='step', lr_step=None, lr_gamma=None, min_lr=None, T_0=None):
+def get_optimizer(model, optim, lr, sched_type='step', lr_step=None, lr_gamma=None, min_lr=None, T_0=None):
     '''
         Returns the optimizer and the scheduler for the model
         Args:
@@ -35,7 +35,17 @@ def get_optimizer(model, lr, sched_type='step', lr_step=None, lr_gamma=None, min
             optimizer: The optimizer for the model
             scheduler: The scheduler for the optimizer
     '''
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    if optim == 'adam':
+        optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    elif optim == 'adamw':
+        optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
+    elif optim == 'rmsprop':
+        optimizer = torch.optim.RMSprop(model.parameters(), lr=lr)
+    elif optim == 'sgd':
+        optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9)
+    else:
+        raise NotImplementedError()
+
     if sched_type == 'step':
         assert lr_step is not None and lr_gamma is not None, "lr_step and lr_gamma must be provided if sched_type is stepLR"
         scheduler = torch.optim.lr_scheduler.StepLR(optimizer,step_size=lr_step, gamma=lr_gamma)
