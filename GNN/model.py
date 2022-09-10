@@ -10,7 +10,7 @@ class MLPStack(torch.nn.Module):
     '''
         A simple MLP stack that stacks multiple linear-bn-act layers
     '''
-    def __init__(self, layers, bn=True, act=True):
+    def __init__(self, layers, bn=True, act=True, p=0):
         super().__init__()
         assert len(layers) > 1, "At least input and output channels must be provided"
 
@@ -24,6 +24,9 @@ class MLPStack(torch.nn.Module):
             )
             modules.append(
                 torch.nn.SiLU() if bn == True else torch.nn.Identity()
+            )
+            modules.append(
+                torch.nn.Dropout(p=p) if p != 0 else torch.nn.Identity()
             )
 
         self.mlp_stack = torch.nn.Sequential(*modules)

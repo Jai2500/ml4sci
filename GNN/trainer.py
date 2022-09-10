@@ -157,7 +157,7 @@ def train(args, num_epochs, model, criterion, optimizer, scheduler, train_loader
                     postfix_dict['class_loss'] = loss_dict['class'].item()
                     val_class_loss_avg_meter.update(loss_dict['class'].item(), out['class'].size(0))
                 
-                val_loss_avg_meter.update(loss.item(), out.size(0))
+                val_loss_avg_meter.update(loss.item(), out['regress'].size(0))
                 postfix_dict['loss'] = loss.item()
                 postfix_dict['avg_loss'] = val_loss_avg_meter.avg
 
