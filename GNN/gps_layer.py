@@ -34,7 +34,7 @@ class GPSLayer(torch.nn.Module):
 
         if global_model_type == None:
             self.self_attn = None
-        elif global_model_type == 'transfomer':
+        elif global_model_type == 'transformer':
             self.self_attn = torch.nn.MultiheadAttention(
                 dim_h, num_heads, dropout=self.attn_dropout, batch_first=True
             )
@@ -101,11 +101,11 @@ class GPSLayer(torch.nn.Module):
 
         # MHA Attention
         if self.self_attn is not None:
-            h_dense, mask = torch_geometric.utils.to_dense_batch(h, batch.batch)
+            h_dense, mask = torch_geometric.utils.to_dense_batch(h_in1, batch.batch) # Here the updated thing goes because we want to make them the same size
             
             if self.global_model_type == 'transformer':
                 h_attn = self._sa_block(h_dense, None, ~mask)[mask]
-            elif self.global_model_type == 'perfomer':
+            elif self.global_model_type == 'performer':
                 h_attn = self.self_attn(h_dense, mask=mask)[mask]
             else:
                 raise RuntimeError(f"Unexpected {self.global_model_type}")
