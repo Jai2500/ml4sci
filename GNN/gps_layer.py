@@ -2,26 +2,7 @@ import torch
 import torch_geometric
 from performer_pytorch import SelfAttention
 
-from model import ResEdgeConv, MLPStack
-
-class ResEdgeConv(torch.nn.Module):
-    '''
-        Internal convolution DynamicEdgeConv block inspired from ParticleNet
-    '''
-    def __init__(self, edge_nn, nn, k=7, edge_feat='none', aggr='max', flow='source_to_target') -> None:
-        super().__init__()
-        self.nn = nn
-        self.k = k
-        self.edge_conv = torch_geometric.nn.EdgeConv(nn=edge_nn, aggr=aggr)
-        self.flow = flow
-        self.edge_feat = edge_feat
-
-    def forward(self, x, edge_index):
-        edge_out = self.edge_conv(x, edge_index)
-        x_out = self.nn(x)
-
-        return edge_out + x_out
-
+from layers import ResEdgeConv, MLPStack
 
 class GPSLayer(torch.nn.Module):
     '''
