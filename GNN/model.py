@@ -1,8 +1,7 @@
-from tkinter.messagebox import NO
-from turtle import forward
 import torch_geometric
 import torch
 from tqdm.auto import tqdm
+from gps_layer import GPSLayer
 
 from dataset_utils import edge_features_as_R
 
@@ -33,6 +32,26 @@ class MLPStack(torch.nn.Module):
 
     def forward(self, x):
         return self.mlp_stack(x)
+
+
+class ResEdgeConv(torch.nn.Module):
+    '''
+        Internal convolution DynamicEdgeConv block inspired from ParticleNet
+    '''
+    def __init__(self, edge_nn, nn, k=7, edge_feat='none', aggr='max', flow='source_to_target') -> None:
+        super().__init__()
+        self.nn = nn
+        self.k = k
+        self.edge_conv = torch_geometric.nn.EdgeConv(nn=edge_nn, aggr=aggr)
+        self.flow = flow
+        self.edge_feat = edge_feat
+
+    def forward(self, x, edge_index):
+        edge_out = self.edge_conv(x, edge_index)
+        x_out = self.nn(x)
+
+        return edge_out + x_out
+
 
 class DynamicEdgeConvPN(torch.nn.Module):
     '''
@@ -318,6 +337,78 @@ class RegressModel(torch.nn.Module):
         return return_dict
 
 
+class GPSModel(torch.nn.Module):
+    '''
+        GraphGPS model from the paper
+    '''
+
+    def __init__(self, args, x_size, pos_size, dim_h, k=7, use_pe=False, pe_scales=10, predict_bins=False, num_bins=10):
+        super().__init__()
+
+        self.num_gps_layers = args.num_gps_layers
+        self.k = k
+        self.dim_h = dim_h
+        self.predict_bins = predict_bins
+
+        input_size = x_size if not use_pe else x_size * (pe_scales * 2 + 1)
+
+        gps_layers = []
+        assert self.num_gps_layers > 0, "At least one GPS layer must be used"
+
+        gps_layers.append(
+            GPSLayer(
+                args,
+                input_size,
+                dim_h,
+                args.gps_mpnn_type,
+                args.gps_global_type,
+                args.gps_num_heads,    
+            )
+        )
+
+        for _ in range(1, self.num_gps_layers):
+            gps_layers.append(
+                GPSLayer(
+                    args,
+                    dim_h,
+                    dim_h,
+                    args.gps_mpnn_type,
+                    args.gps_global_type,
+                    args.gps_num_heads
+                )
+            )
+
+        self.gps_layers = torch.nn.Sequential(*gps_layers)
+
+        self.out_mlp = MLPStack([dim_h + 3, dim_h * 2, dim_h])
+        self.out_regress = torch.nn.Linear(dim_h, 1)
+
+        if self.predict_bins:
+            self.out_pred = torch.nn.Linear(dim_h, num_bins)
+
+    def forward(self, batch):
+        return_dict = {}
+
+        batch.edge_index = torch_geometric.nn.knn_graph(x=batch.pos, k=self.k, batch=batch.batch)
+
+        batch_out = self.gps_layers(batch)
+
+        x_out = torch_geometric.nn.global_mean_pool(batch_out.x, batch_out.batch)
+        
+        x_out = torch.cat(
+            [x_out, batch.pt.unsqueeze(-1), batch.ieta.unsqueeze(-1), batch.iphi.unsqueeze(-1)], dim=-1
+        )
+        x_out = self.out_mlp(x_out)
+
+        regress_out = self.out_regress(x_out)
+        return_dict['regress'] = regress_out
+
+        if self.predict_bins:
+            pred_out = self.out_pred(x_out)
+            return_dict['class'] = pred_out
+
+        return return_dict
+
 def get_model(args, device, model, point_fn, edge_feat, train_loader, pretrained=False, use_pe=False, pe_scales=0, predict_bins=False, num_bins=10):
     '''
         Returns the model based on the arguments
@@ -355,6 +446,22 @@ def get_model(args, device, model, point_fn, edge_feat, train_loader, pretrained
         input_model = PNANet(args, x_size, pos_size, deg, edge_feat=edge_feat, use_pe=use_pe, pe_scales=pe_scales)
     elif model == 'gatedgcn':
         input_model = GatedGCNNet(args, x_size, pos_size, edge_feat=edge_feat, use_pe=use_pe, pe_scales=pe_scales)
+    elif model == 'gps':
+        regress_model = GPSModel(
+            args,
+            x_size,
+            pos_size,
+            dim_h=args.gps_dim_h,
+            k=7,
+            use_pe=use_pe,
+            pe_scales=pe_scales,
+            predict_bins=predict_bins,
+            num_bins=num_bins
+        )
+
+        regress_model = regress_model.to(device)
+
+        return regress_model
     else:
         raise NotImplementedError(f"Model type {model} not implemented")
 

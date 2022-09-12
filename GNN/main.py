@@ -148,7 +148,7 @@ if __name__ == '__main__':
                         help='Whether to divide the output by normalizing constant')
     parser.add_argument('--output_norm_value', type=float, default=119.904,
                         help='The the normalizing constant to divide the output by')
-    parser.add_argument('--model', type=str, default='gat', choices=['dgcnn', 'gat', 'pna', 'gatedgcn'], help='The backbone GNN to use')
+    parser.add_argument('--model', type=str, default='gat', choices=['dgcnn', 'gat', 'pna', 'gatedgcn', 'gps'], help='The backbone GNN to use')
     parser.add_argument('--point_fn', type=str, default='total', choices=['total', 'channel_wise'], help='How to obtain points from the image')
     parser.add_argument('--plot', action='store_true', help='Whether to plot the predicted vs ground truth results')
     parser.add_argument('--edge_feat', type=str, default='none', choices=['none', 'R'], help='Which method to use to obtain edge_feat')
@@ -169,6 +169,11 @@ if __name__ == '__main__':
     parser.add_argument('--RWSE', action='store_true', help='Whether to perform the Random Walk Encoding Transform')
     parser.add_argument('--RWSEkernel_times', default=[2, 3, 5, 7, 10], help='List of k-steps for which to compute the RW landings')
     parser.add_argument('--save_data', action='store_true', help='Whether to store the data object for each sample')
+    parser.add_argument('--gps_mpnn_type', type=str, default=None, choices=[None, 'gatedgcn', 'gat', 'edgeconv'], help='Local MPNN for the GraphGPS Layer')
+    parser.add_argument('--gps_global_type', type=str, default=None, choices=[None, 'transformer', 'performer'], help='The Global Attention Module for the GraphGPS Layer')
+    parser.add_argument('--gps_num_heads', type=int, default=4, help='The number of heads for the self attn of the GraphGPS layer')
+    parser.add_argument('--gps_dim_h', type=int, default=128, help='The dim_h of the GraphGPS Layer')
+    parser.add_argument('--num_gps_layers', type=int, default=2, help='Number of GraphGPS Layers to use')
     args = parser.parse_args()
 
     train_dset, val_dset, test_dset, train_size, val_size, test_size = get_datasets(
