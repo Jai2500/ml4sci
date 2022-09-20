@@ -66,7 +66,7 @@ if __name__ == '__main__':
     parser.add_argument('--name', type=str,
                         default='cnn-model', help='Name of the run')
     parser.add_argument('--save_path', type=str,
-                        default='./ckpt/model.pth', help='Path of the model ckpt')
+                        default='./ckpt', help='Path to save the final model')
     parser.add_argument('--data_dir', type=str, default='./data',
                         help='Path to the root dir of the dataset')
     parser.add_argument('--train_batch_size', type=int,
@@ -83,6 +83,12 @@ if __name__ == '__main__':
                         help='Ratio of the dataset to take as the validation set')
     parser.add_argument('--pretrained', action='store_true',
                         help='Whether to use the pretrained network')
+    parser.add_argument('--lr', type=float, default=3e-4,
+                        help='The learning rate of the model')
+    parser.add_argument('--lr_step', type=int, default=5,
+                        help='The number of steps to reduce the LR of the optimizer')
+    parser.add_argument('--lr_gamma', type=float, default=0.1,
+                        help='The factor by which to reduce the LR of the optimizer')
     parser.add_argument('--criterion_type', type=str, default='mse', choices=[
                         'mse', 'l2', 'l1', 'smoothl1'], help='Which criterion to use for training')
     parser.add_argument('--criterion_beta', type=float, default=20,
@@ -101,20 +107,45 @@ if __name__ == '__main__':
                         help='Whether to divide the output by normalizing constant')
     parser.add_argument('--output_norm_value', type=float, default=119.904,
                         help='The the normalizing constant to divide the output by')
-    parser.add_argument('--model', type=str, default='gat', choices=['dgcnn', 'gat', 'pna', 'gatedgcn'], help='The backbone GNN to use')
+    parser.add_argument('--model', type=str, default='gat', choices=['dgcnn', 'gat', 'pna', 'gatedgcn', 'gps'], help='The backbone GNN to use')
     parser.add_argument('--point_fn', type=str, default='total', choices=['total', 'channel_wise'], help='How to obtain points from the image')
     parser.add_argument('--plot', action='store_true', help='Whether to plot the predicted vs ground truth results')
     parser.add_argument('--edge_feat', type=str, default='none', choices=['none', 'R'], help='Which method to use to obtain edge_feat')
     parser.add_argument('--scale_histogram', action='store_true', help='Whether to scale based on histogram scales provided')
+    parser.add_argument('--predict_bins', action='store_true', help='Whether to also predict a binned mass')
+    parser.add_argument('--min_mass', type=float, default=0., help='Minimum mass of the output')
+    parser.add_argument('--max_mass', type=float, default=1., help='Maximum mass of the output')
+    parser.add_argument('--num_bins', type=int, default=10, help='Number of bins for binning the output mass')
     parser.add_argument('--debug', action='store_true')
+    parser.add_argument('--sched_type', type=str, default='step', choices=['step', 'ca_wm'], help='Which type of scheduler to use')
+    parser.add_argument('--min_lr', type=float, default=1e-7, help='Minimum LR for the cosine annealing LR scheduler')
+    parser.add_argument('--T_0', type=int, default=5, help='Number of iterations for the first restart')
+    parser.add_argument('--optim', type=str, default='adam', choices=['adam', 'adamw', 'rmsprop', 'sgd'])
+    parser.add_argument('--LapPE', action='store_true', help='Whether to use the Laplacian PE encoding transform')
+    parser.add_argument('--LapPEnorm', default=None, choices=['sym', 'rw', None])
+    parser.add_argument('--LapPEmax_freq', type=int, default=10, help='Maximum number of top smallest frequencies / eigenvecs to use')
+    parser.add_argument('--LapPEeig_norm', default='L2', help='Normalization for the eigen vectors of the Laplacian')
+    parser.add_argument('--RWSE', action='store_true', help='Whether to perform the Random Walk Encoding Transform')
+    parser.add_argument('--RWSEkernel_times', default=[2, 3, 5, 7, 10], help='List of k-steps for which to compute the RW landings')
+    parser.add_argument('--save_data', action='store_true', help='Whether to store the data object for each sample')
+    parser.add_argument('--gps_mpnn_type', type=str, default=None, choices=[None, 'gatedgcn', 'gat', 'edgeconv'], help='Local MPNN for the GraphGPS Layer')
+    parser.add_argument('--gps_global_type', type=str, default=None, choices=[None, 'transformer', 'performer'], help='The Global Attention Module for the GraphGPS Layer')
+    parser.add_argument('--gps_num_heads', type=int, default=4, help='The number of heads for the self attn of the GraphGPS layer')
+    parser.add_argument('--gps_dim_h', type=int, default=128, help='The dim_h of the GraphGPS Layer')
+    parser.add_argument('--num_gps_layers', type=int, default=2, help='Number of GraphGPS Layers to use')
     args = parser.parse_args()
 
     train_dset, val_dset, test_dset, train_size, val_size, test_size = get_datasets(
+        args,
         args.data_dir,
         args.num_files,
         args.test_ratio,
         args.val_ratio,
         scale_histogram=args.scale_histogram,
+        predict_bins=args.predict_bins,
+        min_mass=args.min_mass,
+        max_mass=args.max_mass,
+        num_bins=args.num_bins,
         point_fn=args.point_fn,
         use_pe=args.use_pe,
         pe_scales=args.num_pe_scales,
@@ -128,9 +159,8 @@ if __name__ == '__main__':
     train_loader, val_loader, test_loader = get_loaders(
         train_dset, val_dset, test_dset, args.train_batch_size, args.val_batch_size, args.test_batch_size)
 
-    model = get_model(args.device, model=args.model, edge_feat=args.edge_feat, train_loader=train_loader, point_fn=args.point_fn, pretrained=args.pretrained,
-                      use_pe=args.use_pe, pe_scales=args.num_pe_scales)
-
+    model = get_model(args, args.device, model=args.model, edge_feat=args.edge_feat, train_loader=train_loader, point_fn=args.point_fn, pretrained=args.pretrained,
+                      use_pe=args.use_pe, pe_scales=args.num_pe_scales, predict_bins=args.predict_bins, num_bins=args.num_bins)
     ckpt = torch.load(args.save_path, map_location=args.device)
     model.load_state_dict(ckpt)
     model.eval()
