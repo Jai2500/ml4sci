@@ -82,8 +82,8 @@ def main(
                   train_loader, args.train_batch_size, train_size,
                   val_loader, args.val_batch_size, val_size, device)
 
-    test_error = test(args, model, test_loader, test_metric, device, output_norm_scaling=args.output_norm_scaling,
-                      output_norm_value=args.output_norm_value)
+    test_error, results = test(args, model, test_loader, test_metric, device, output_norm_scaling=args.output_norm_scaling,
+                      output_norm_value=args.output_norm_value, results_to_get=[])
     print(f"Model on Test dataset - Error: {test_error}")
 
     if not args.debug:

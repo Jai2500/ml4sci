@@ -8,6 +8,3 @@ def get_residuals(args, model, test_loader, device):
         with torch.no_grad():
             data = data.to(device, non_blocking=True)
             out = model(data)
-
-        
-        

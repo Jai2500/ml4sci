@@ -5,7 +5,7 @@ import torch
 m0_scale    = 85
 m1_scale    = 415
 
-def test(args, model, test_loader, criterion, device, output_norm_scaling=False, output_norm_value=1.):
+def test(args, model, test_loader, criterion, device, output_norm_scaling=False, output_norm_value=1., results_to_get = []):
     '''
         Performs testing of the model on the test dataset
         Args:
@@ -24,8 +24,11 @@ def test(args, model, test_loader, criterion, device, output_norm_scaling=False,
     test_loss_avg_meter = AverageMeter()
     tqdm_iter = tqdm(test_loader, total=len(test_loader))
 
-    pred_list = []
-    ground_truth_list = []
+    results = {}
+
+    if 'residual' in results_to_get:
+        residual_crit = torch.nn.L1Loss(reduction='none')
+        residuals = []
 
     for it, batch in enumerate(tqdm_iter):
         with torch.no_grad():
@@ -39,13 +42,29 @@ def test(args, model, test_loader, criterion, device, output_norm_scaling=False,
                 out *= output_norm_value
                 m *= output_norm_value
             elif args.scale_histogram:
-                m = m * m1_scale + m0_scale
-                out = out * m1_scale + m0_scale
+                m = m * m1_scale 
+                out = out * m1_scale
+
+            if args.output_mean_scaling:
+                out = out + args.output_mean_value
+                m = m + args.output_mean_value
+            elif args.scale_histogram:
+                m = m + m0_scale
+                out = out + m0_scale
 
             loss = criterion(out, m.unsqueeze(-1))
+
+            if 'residual' in results_to_get:
+                res_values = residual_crit(out, m.unsqueeze(-1))
+                residuals.append(
+                    res_values
+                )
 
             tqdm_iter.set_postfix(loss=loss.item())
 
             test_loss_avg_meter.update(loss.item(), out.size(0))
 
-    return test_loss_avg_meter.avg
+        if 'residual' in results_to_get:
+            results['residual'] = torch.cat(residuals, dim=-1)
+
+    return test_loss_avg_meter.avg, results

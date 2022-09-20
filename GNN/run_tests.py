@@ -1,3 +1,4 @@
+from tester import test
 from dataset_utils import get_loaders
 from dataset import get_datasets
 import torch
@@ -48,7 +49,11 @@ def main(
     '''
     results = {}
 
-    results['residul_binning'] = get_residuals(model, val_loader)
+    test_error, results = test(args, model, test_loader, test_metric, device, output_norm_scaling=args.output_norm_scaling,
+                         output_norm_value=args.output_norm_value, results_to_get=['residual'])
+    
+    for k, v in results:
+        torch.save(results[k], os.path.join(args.data_dir, str(k) + '.pt'))
 
     return results
 
@@ -133,7 +138,7 @@ if __name__ == '__main__':
     criterion = get_criterion(args.criterion_type, beta=args.criterion_beta)
     test_metric = get_test_metric()
 
-    model = main(
+    results = main(
         args=args,
         run_name=args.name,
         num_epochs=args.num_epochs,
