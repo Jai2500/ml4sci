@@ -51,7 +51,7 @@ def get_optimizer(model, optim, lr, sched_type='step', lr_step=None, lr_gamma=No
         scheduler = torch.optim.lr_scheduler.StepLR(optimizer,step_size=lr_step, gamma=lr_gamma)
     elif sched_type == 'ca_wm':
         assert T_0 is not None, "T_0 must be provieedd for cosine annealing LR"
-        scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=T_0, eta_min=min_lr, T_mult=1)
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=T_0, eta_min=min_lr, T_mult=2)
 
     return optimizer, scheduler
 

@@ -124,7 +124,7 @@ class PointCloudFromParquetDataset(torch.utils.data.Dataset):
                     m = (m - m0_scale) if not self.output_mean_scaling else m
                     m = m / m1_scale if not self.output_norm_scaling else m
                     iphi = iphi / 360.
-                    eta = ieta / 140.
+                    ieta = ieta / 140.
 
                     # High value suppression
                     x[:, 1][x[:, 1] < -1] = 0

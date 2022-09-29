@@ -80,7 +80,7 @@ class ImageDatasetFromParquet(torch.utils.data.Dataset):
         row = self.file.read_row_group(idx).to_pydict()
         to_return = {
             "X_jets":
-                self.transforms(np.array(row["X_jet"][0]).reshape(125, 125, 8)).float() if (not self.use_zero_suppression and not self.scale_as_histogram)
+                self.transforms(np.array(row["X_jet"][0]).transpose(2, 0, 1)).float() if (not self.use_zero_suppression and not self.scale_as_histogram)
                 else self.transforms(zero_suppression(np.array(row["X_jet"][0]).reshape(125, 125, 8), self.min_threshold)).float(),
             "m": torch.as_tensor(row["m"][0], dtype=torch.float),
             "pt": torch.as_tensor(row["pt"][0], dtype=torch.float).unsqueeze(-1),

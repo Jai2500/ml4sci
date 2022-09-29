@@ -18,20 +18,20 @@ combined_dset = torch.utils.data.ConcatDataset(dsets)
 loader = torch.utils.data.DataLoader(combined_dset, shuffle=True, batch_size=128)
 
 avg_meter = AverageMeter()
-sq_avg_meter = AverageMeter()
 rel_count = 0
+
 
 pbar = tqdm(loader, total=len(loader))
 for data in pbar:
-    counts = torch.count_nonzero(data['X_jets'], dim=[0, 2, 3])
-    avg_meter.update(
-        data['X_jets'].sum(dim=[0, 2, 3]) / counts,
-        n=counts
-    )
-    sq_avg_meter.update(
-        (data['X_jets'] ** 2).sum(dim=[0,2,3]) / counts,
-        n=counts
-    )
+    # counts = torch.count_nonzero(data['X_jets'], dim=[0, 2, 3])
+    # avg_meter.update(
+    #     data['X_jets'].sum(dim=[0, 2, 3]) / counts,
+    #     n=counts
+    # )
+    # sq_avg_meter.update(
+    #     (data['X_jets'] ** 2).sum(dim=[0,2,3]) / counts,
+    #     n=counts
+    # )
 
     rel_count += data['m'].shape[0]
 
