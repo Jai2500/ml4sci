@@ -163,7 +163,7 @@ if __name__ == '__main__':
     parser.add_argument('--sched_type', type=str, default='step', choices=['step', 'ca_wm'], help='Which type of scheduler to use')
     parser.add_argument('--min_lr', type=float, default=1e-7, help='Minimum LR for the cosine annealing LR scheduler')
     parser.add_argument('--T_0', type=int, default=5, help='Number of iterations for the first restart')
-    parser.add_argument('--optim', type=str, default='adam', choices=['adam', 'adamw', 'rmsprop', 'sgd'])
+    parser.add_argument('--optim', type=str, default='adam', choices=['adam', 'adamw', 'rmsprop', 'sgd'], help='Which optimizer to use')
     parser.add_argument('--LapPE', action='store_true', help='Whether to use the Laplacian PE encoding transform')
     parser.add_argument('--LapPEnorm', default=None, choices=['sym', 'rw', None])
     parser.add_argument('--LapPEmax_freq', type=int, default=10, help='Maximum number of top smallest frequencies / eigenvecs to use')

@@ -2,7 +2,7 @@ import torch
 import torch_geometric
 from performer_pytorch import SelfAttention
 
-from layers import ResEdgeConv, MLPStack, compute_degree
+from layers import ResEdgeConv, MLPStack
 
 class GPSLayer(torch.nn.Module):
     '''
