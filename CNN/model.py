@@ -7,7 +7,7 @@ class MLPStack(torch.nn.Module):
     '''
         A simple MLP stack that stacks multiple linear-bn-act layers
     '''
-    def __init__(self, layers, bn=True, act=True):
+    def __init__(self, layers, bn=True, act=True, p=0):
         super().__init__()
         assert len(layers) > 1, "At least input and output channels must be provided"
 
@@ -21,6 +21,9 @@ class MLPStack(torch.nn.Module):
             )
             modules.append(
                 torch.nn.SiLU() if bn == True else torch.nn.Identity()
+            )
+            modules.append(
+                torch.nn.Dropout(p=p) if p != 0 else torch.nn.Identity()
             )
 
         self.mlp_stack = torch.nn.Sequential(*modules)
@@ -62,7 +65,7 @@ class RegressModel(torch.nn.Module):
 
         self.out_mlp = MLPStack(
             [in_features + 3 if not use_pe else in_features + 3 * (pe_scales * 2 + 1), in_features * 2, in_features * 2, in_features, in_features // 2, in_features // 2],
-            bn=True, act=True
+            bn=True, act=True, p=0.5
         )
         self.out_lin = torch.nn.Linear(in_features // 2, 1)
 

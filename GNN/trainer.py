@@ -7,7 +7,7 @@ import torch
 m0_scale    = 85
 m1_scale    = 415
 
-def train(args, num_epochs, model, criterion, optimizer, scheduler, train_loader, train_batch_size, train_size, val_loader, val_batch_size, val_size, device):
+def train(args, num_epochs, model, criterion, optimizer, scheduler, train_loader, train_batch_size, train_size, val_loader, val_batch_size, val_size, device, multi_gpu):
     '''
         Performs the training of the model, logs the results on Wandb and returns the best model.
         Args:
@@ -46,8 +46,11 @@ def train(args, num_epochs, model, criterion, optimizer, scheduler, train_loader
         for it, batch in enumerate(tqdm_iter):
             optimizer.zero_grad()
             
-            batch = batch.to(device, non_blocking=True)
-            m = batch.y
+            if not multi_gpu:
+                batch = batch.to(device, non_blocking=True)
+                m = batch.y
+            else:
+                m = torch.cat([data.y.unsqueeze(-1) for data in batch]).to(device)
 
             out = model(batch)
 
@@ -79,7 +82,11 @@ def train(args, num_epochs, model, criterion, optimizer, scheduler, train_loader
             }
 
             if args.predict_bins:
-                loss_dict['class'] = criterion['class'](out['class'], batch.y_class)
+                if not multi_gpu:
+                    y_class = batch.y_class
+                else:
+                    y_class = torch.cat([data.y_class.unsqueeze(-1) for data in batch]).to(device)
+                loss_dict['class'] = criterion['class'](out['class'], y_class)
                 loss += loss_dict['class']
                 postfix_dict['class_loss'] = loss_dict['class'].item()
 
@@ -116,8 +123,11 @@ def train(args, num_epochs, model, criterion, optimizer, scheduler, train_loader
         for it, batch in enumerate(val_tqdm_iter):
             with torch.no_grad():
                 
-                batch = batch.to(device, non_blocking=True)
-                m = batch.y
+                if not multi_gpu:
+                    batch = batch.to(device, non_blocking=True)
+                    m = batch.y
+                else:
+                    m = torch.cat([data.y.unsqueeze(-1) for data in batch]).to(device)
 
                 out = model(batch)
 
@@ -152,7 +162,11 @@ def train(args, num_epochs, model, criterion, optimizer, scheduler, train_loader
                 }
 
                 if args.predict_bins:
-                    loss_dict['class'] = criterion['class'](out['class'], batch.y_class)
+                    if not multi_gpu:
+                        y_class = batch.y_class
+                    else:
+                        y_class = torch.cat([data.y_class.unsqueeze(-1) for data in batch]).to(device)
+                    loss_dict['class'] = criterion['class'](out['class'], y_class)
                     loss += loss_dict['class']
                     postfix_dict['class_loss'] = loss_dict['class'].item()
                     val_class_loss_avg_meter.update(loss_dict['class'].item(), out['class'].size(0))

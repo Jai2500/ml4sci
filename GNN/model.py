@@ -3,7 +3,7 @@ import torch
 from tqdm.auto import tqdm
 from gps_layer import GPSLayer
 from layers import MLPStack, ResEdgeConv
-
+import os
 from dataset_utils import edge_features_as_R
 
 class DynamicEdgeConvPN(torch.nn.Module):
@@ -107,20 +107,27 @@ class GatedGCNNet(torch.nn.Module):
         return x_out
 
 
-def compute_degree(train_dset, k=7, device='cpu'):
+def compute_degree(train_dset, k=7, device='cpu', force_recompute=False):
+    
+    # Code from the PyG repository for computing for random graphs. Here graphs are constructed as k-nn
     # max_degree = -1
     # for data in tqdm(train_dset, desc='Max Degree'):
     #     edge_index = torch_geometric.nn.knn_graph(data.pos, k=k, num_workers=1)
     #     d = torch_geometric.utils.degree(edge_index[1], num_nodes=data.num_nodes, dtype=torch.long)
     #     max_degree = max(max_degree, d.max())
-    max_degree = k + 1
-    deg = torch.zeros(max_degree + 1, dtype=torch.long, device=device)
-    for data in tqdm(train_dset, desc='Degree Distribution'):
-        data = data.to(device, non_blocking=True)
-        edge_index = torch_geometric.nn.knn_graph(data.pos, k=k, num_workers=1)
-        d = torch_geometric.utils.degree(edge_index[1], num_nodes=data.num_nodes, dtype=torch.long)
-        deg += torch.bincount(d, minlength=deg.numel())
 
+    if os.path.exists('deg.pt') and not force_recompute:
+        deg = torch.load('deg.pt')
+    else:
+        max_degree = k + 1
+        deg = torch.zeros(max_degree + 1, dtype=torch.long, device=device)
+        for data in tqdm(train_dset, desc='Degree Distribution'):
+            data = data.to(device, non_blocking=True)
+            edge_index = torch_geometric.nn.knn_graph(data.pos, k=k, num_workers=1)
+            d = torch_geometric.utils.degree(edge_index[1], num_nodes=data.num_nodes, dtype=torch.long)
+            deg += torch.bincount(d, minlength=deg.numel())
+
+        torch.save(deg, 'deg.pt')
     return deg # tensor([       0,        0,        0,        0,        0,        0,        0, 64694479, 23216198])
 
 class PNANet(torch.nn.Module):
@@ -295,7 +302,7 @@ class GPSModel(torch.nn.Module):
         GraphGPS model from the paper
     '''
 
-    def __init__(self, args, x_size, pos_size, dim_h, k=7, use_pe=False, pe_scales=10, predict_bins=False, num_bins=10):
+    def __init__(self, args, x_size, pos_size, dim_h, k=7, deg=None, use_pe=False, pe_scales=10, predict_bins=False, num_bins=10):
         super().__init__()
 
         self.num_gps_layers = args.num_gps_layers
@@ -315,7 +322,8 @@ class GPSModel(torch.nn.Module):
                 dim_h,
                 args.gps_mpnn_type,
                 args.gps_global_type,
-                args.gps_num_heads,    
+                args.gps_num_heads,
+                deg=deg,    
             )
         )
 
@@ -327,7 +335,8 @@ class GPSModel(torch.nn.Module):
                     dim_h,
                     args.gps_mpnn_type,
                     args.gps_global_type,
-                    args.gps_num_heads
+                    args.gps_num_heads,
+                    deg=deg,
                 )
             )
 
@@ -362,7 +371,7 @@ class GPSModel(torch.nn.Module):
 
         return return_dict
 
-def get_model(args, device, model, point_fn, edge_feat, train_loader, pretrained=False, use_pe=False, pe_scales=0, predict_bins=False, num_bins=10):
+def get_model(args, device, model, point_fn, edge_feat, train_loader, multi_gpu=False, pretrained=False, use_pe=False, pe_scales=0, predict_bins=False, num_bins=10):
     '''
         Returns the model based on the arguments
         Args:
@@ -400,17 +409,25 @@ def get_model(args, device, model, point_fn, edge_feat, train_loader, pretrained
     elif model == 'gatedgcn':
         input_model = GatedGCNNet(args, x_size, pos_size, edge_feat=edge_feat, use_pe=use_pe, pe_scales=pe_scales)
     elif model == 'gps':
+        if args.gps_mpnn_type == 'pnaconv':
+            deg = compute_degree(train_loader, device=device)
+        else:
+            deg = None
         regress_model = GPSModel(
             args,
             x_size,
             pos_size,
             dim_h=args.gps_dim_h,
             k=7,
+            deg=deg,
             use_pe=use_pe,
             pe_scales=pe_scales,
             predict_bins=predict_bins,
             num_bins=num_bins
         )
+
+        if multi_gpu:
+            regress_model = torch_geometric.nn.DataParallel(regress_model)
 
         regress_model = regress_model.to(device)
 
@@ -426,6 +443,9 @@ def get_model(args, device, model, point_fn, edge_feat, train_loader, pretrained
         predict_bins=predict_bins,
         num_bins=num_bins,
     )
+
+    if multi_gpu:
+        regress_model = torch_geometric.nn.DataParallel(regress_model)
 
     regress_model = regress_model.to(device)
 

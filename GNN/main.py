@@ -43,6 +43,7 @@ def main(
     val_size,
     test_size,
     device,
+    multi_gpu,
 
     save_path
 ):
@@ -64,6 +65,7 @@ def main(
             val_size: The size of the validation dataset
             test_size: The size of the test dataset
             device: The device to run the training on
+            multi_gpu: Whether to run the training/testing on multiple gpus
             save_path: Path on the disk to the folder where to save the best model
 
         Returns:
@@ -80,7 +82,7 @@ def main(
 
     model = train(args, num_epochs, model, criterion, optimizer, scheduler,
                   train_loader, args.train_batch_size, train_size,
-                  val_loader, args.val_batch_size, val_size, device)
+                  val_loader, args.val_batch_size, val_size, device, multi_gpu)
 
     test_error, results = test(args, model, test_loader, test_metric, device, output_norm_scaling=args.output_norm_scaling,
                       output_norm_value=args.output_norm_value, results_to_get=[])
@@ -169,11 +171,12 @@ if __name__ == '__main__':
     parser.add_argument('--RWSE', action='store_true', help='Whether to perform the Random Walk Encoding Transform')
     parser.add_argument('--RWSEkernel_times', default=[2, 3, 5, 7, 10], help='List of k-steps for which to compute the RW landings')
     parser.add_argument('--save_data', action='store_true', help='Whether to store the data object for each sample')
-    parser.add_argument('--gps_mpnn_type', type=str, default=None, choices=[None, 'gatedgcn', 'gat', 'edgeconv'], help='Local MPNN for the GraphGPS Layer')
+    parser.add_argument('--gps_mpnn_type', type=str, default=None, choices=[None, 'gatedgcn', 'gat', 'edgeconv', 'pnaconv'], help='Local MPNN for the GraphGPS Layer')
     parser.add_argument('--gps_global_type', type=str, default=None, choices=[None, 'transformer', 'performer'], help='The Global Attention Module for the GraphGPS Layer')
     parser.add_argument('--gps_num_heads', type=int, default=4, help='The number of heads for the self attn of the GraphGPS layer')
     parser.add_argument('--gps_dim_h', type=int, default=128, help='The dim_h of the GraphGPS Layer')
     parser.add_argument('--num_gps_layers', type=int, default=2, help='Number of GraphGPS Layers to use')
+    parser.add_argument('--multi_gpu', action='store_true', help='Whether to use multiple gpus using DataParallel')
     args = parser.parse_args()
 
     train_dset, val_dset, test_dset, train_size, val_size, test_size = get_datasets(
@@ -198,10 +201,10 @@ if __name__ == '__main__':
     )
 
     train_loader, val_loader, test_loader = get_loaders(
-        train_dset, val_dset, test_dset, args.train_batch_size, args.val_batch_size, args.test_batch_size)
+        train_dset, val_dset, test_dset, args.train_batch_size, args.val_batch_size, args.test_batch_size, args.multi_gpu)
 
     model = get_model(args, args.device, model=args.model, edge_feat=args.edge_feat, train_loader=train_loader, point_fn=args.point_fn, pretrained=args.pretrained,
-                      use_pe=args.use_pe, pe_scales=args.num_pe_scales, predict_bins=args.predict_bins, num_bins=args.num_bins)
+                      use_pe=args.use_pe, pe_scales=args.num_pe_scales, predict_bins=args.predict_bins, num_bins=args.num_bins, multi_gpu=args.multi_gpu)
     optimizer, scheduler = get_optimizer(
         model, args.optim, args.lr, args.sched_type, args.lr_step, args.lr_gamma, args.min_lr, args.T_0)
 
@@ -224,5 +227,6 @@ if __name__ == '__main__':
         val_size=val_size,
         test_size=test_size,
         device=args.device,
+        multi_gpu=args.multi_gpu,
         save_path=args.save_path
     )

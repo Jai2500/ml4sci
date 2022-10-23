@@ -2,13 +2,13 @@ import torch
 import torch_geometric
 from performer_pytorch import SelfAttention
 
-from layers import ResEdgeConv, MLPStack
+from layers import ResEdgeConv, MLPStack, compute_degree
 
 class GPSLayer(torch.nn.Module):
     '''
         Local MPNN + full graph attention x-former layer
     '''
-    def __init__(self, args, input_size, dim_h, local_mpnn_type, global_model_type, num_heads, layer_norm=False, batch_norm=True, dropout=0., attn_dropout=0., k=7):
+    def __init__(self, args, input_size, dim_h, local_mpnn_type, global_model_type, num_heads, layer_norm=False, batch_norm=True, dropout=0., attn_dropout=0., deg=None, k=7):
         super().__init__()
         
         self.dim_h = dim_h
@@ -28,7 +28,22 @@ class GPSLayer(torch.nn.Module):
         elif local_mpnn_type == 'gat':
             self.local_model = torch_geometric.nn.GATv2Conv(in_channels=input_size, out_channels=dim_h, heads=num_heads)
         elif local_mpnn_type == 'edgeconv':
-            self.local_model = ResEdgeConv(nn=MLPStack([input_size, dim_h]), edge_nn=MLPStack([input_size * 2, dim_h]))
+            self.local_model = ResEdgeConv(nn=MLPStack([input_size, dim_h]), edge_nn=MLPStack([input_size * 2, dim_h]))            
+        elif local_mpnn_type == 'pnaconv':
+            aggregators = ['mean', 'min', 'max', 'std']
+            scalers = ['identity', 'amplification', 'attenuation']
+
+            self.local_model = torch_geometric.nn.PNAConv(
+                in_channels=input_size,
+                out_channels=dim_h,
+                aggregators=aggregators,
+                scalers=scalers,
+                deg=deg,
+                towers=4,
+                pre_layers=1,
+                post_layers=1,
+                divide_input=False
+            )
         else:
             raise NotImplementedError()
 

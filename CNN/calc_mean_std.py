@@ -16,7 +16,8 @@ for path in tqdm(paths[0:1]):
         path, transforms=[]))
 
 combined_dset = torch.utils.data.ConcatDataset(dsets)
-loader = torch.utils.data.DataLoader(combined_dset, shuffle=True, batch_size=128)
+loader = torch.utils.data.DataLoader(
+    combined_dset, shuffle=True, batch_size=128)
 
 avg_meter = [AverageMeter()] * 8
 sq_avg_meter = [AverageMeter()] * 8
@@ -41,7 +42,7 @@ for it, data in enumerate(pbar):
 
         if (it + 1) % 5000 == 0:
             print(avg_meter[i].avg, i)
-        
+
 for i in range(8):
     print(f"Average {i}", avg_meter[i].avg)
     print(f"Std {i}", torch.sqrt(sq_avg_meter[i].avg - avg_meter[i].avg**2))
@@ -52,7 +53,8 @@ pbar = tqdm(loader, total=len(loader))
 for data in pbar:
     for i in range(8):
         img = data['X_jets'][:, i, :, :]
-        dev = (img[img.nonzero(as_tuple=True)] - avg_meter[i].avg) ** 2
+        dev = (img[img.nonzero(as_tuple=True)] -
+               avg_meter[i].avg.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)) ** 2
         count = torch.count_nonzero(img)
 
         dev_avg_meter[i].update(

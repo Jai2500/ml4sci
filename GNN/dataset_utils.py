@@ -2,7 +2,7 @@ import torch
 import numpy as np
 import torch_geometric
 
-def get_loaders(train_dset, val_dset, test_dset, train_batch_size, val_batch_size, test_batch_size):
+def get_loaders(train_dset, val_dset, test_dset, train_batch_size, val_batch_size, test_batch_size, multi_gpu):
     '''
         This function provides the loaders for the datasets
         
@@ -19,13 +19,17 @@ def get_loaders(train_dset, val_dset, test_dset, train_batch_size, val_batch_siz
             val_loader: Validation dataset data loader
             test_loader: Test dataset data loader
     '''
-    train_loader = torch_geometric.data.DataLoader(
+    if multi_gpu:
+        loader_type = torch_geometric.data.DataListLoader
+    else:
+        loader_type = torch_geometric.data.DataLoader
+    train_loader = loader_type(
         train_dset, shuffle=True, batch_size=train_batch_size, pin_memory=True, num_workers=0
     )
-    val_loader = torch_geometric.data.DataLoader(
+    val_loader = loader_type(
         val_dset, shuffle=False, batch_size=val_batch_size, pin_memory=True, num_workers=0
     )
-    test_loader = torch_geometric.data.DataLoader(
+    test_loader = loader_type(
         test_dset, shuffle=False, batch_size=test_batch_size, num_workers=0
     )
     return train_loader, val_loader, test_loader
