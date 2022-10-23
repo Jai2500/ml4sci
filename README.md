@@ -11,8 +11,8 @@
 - [x] Perform basic augmentations and loss function testing for CNNs
 - [x] Write a GNN baseline
 - [x] Different ways to obtain points from image
-- [ ] Different ways to obtain neighbourhood/edges  
-- [ ] Perform basic testing with different GNN architectures
-- [ ] Look into GraphGPS and CIN
-- [ ] Look into LapPE, RWSE, and other encoding methods
-- [ ] Explore with larger models
+- [x] Different ways to obtain neighbourhood/edges  
+- [x] Perform basic testing with different GNN architectures
+- [x] Look into GraphGPS and CIN
+- [x] Look into LapPE, RWSE, and other encoding methods
+- [x] Explore with larger models
