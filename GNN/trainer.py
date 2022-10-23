@@ -85,7 +85,7 @@ def train(args, num_epochs, model, criterion, optimizer, scheduler, train_loader
                 if not multi_gpu:
                     y_class = batch.y_class
                 else:
-                    y_class = torch.cat([data.y_class.unsqueeze(-1) for data in batch]).to(device)
+                    y_class = torch.cat([torch.as_tensor(data.y_class).unsqueeze(-1) for data in batch]).to(device)
                 loss_dict['class'] = criterion['class'](out['class'], y_class)
                 loss += loss_dict['class']
                 postfix_dict['class_loss'] = loss_dict['class'].item()
@@ -165,7 +165,7 @@ def train(args, num_epochs, model, criterion, optimizer, scheduler, train_loader
                     if not multi_gpu:
                         y_class = batch.y_class
                     else:
-                        y_class = torch.cat([data.y_class.unsqueeze(-1) for data in batch]).to(device)
+                        y_class = torch.cat([torch.as_tensor(data.y_class).unsqueeze(-1) for data in batch]).to(device)
                     loss_dict['class'] = criterion['class'](out['class'], y_class)
                     loss += loss_dict['class']
                     postfix_dict['class_loss'] = loss_dict['class'].item()
