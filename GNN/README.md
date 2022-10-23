@@ -65,13 +65,16 @@ The provided `example.ipynb` notebook handles all the aspect of training/testing
 
 ### Install the requirements
 
-The requirements for the project can be install as:
-`pip install -r requirements.txt`
+The requirements for the project can be installed by:
+
+```bash
+pip install -r requirements.txt
+```
 
 ### From the terminal shell
 
 The `main.py` file implements the training/testing loop. A simple run with default values can be done using 
-```
+```bash
 python main.py
 ```
 Arguments can also be provided to change the training/testing:

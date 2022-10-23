@@ -2,14 +2,33 @@
 
 This folder contains all the required files to train/test a baseline CNN model.
 
+**For the full description please refer to the final report: [link](https://medium.com/@JaiBardhan/google-summer-of-code-2022-with-ml4sci-e2e-top-mass-regression-using-graph-neural-networks-3268a091660b)**
+
+## Table of Contents
+- [CNN Baseline Model](#cnn-baseline-model)
+  - [Table of Contents](#table-of-contents)
+  - [Data](#data)
+  - [The baseline model](#the-baseline-model)
+  - [Results](#results)
+  - [How to run?](#how-to-run)
+    - [Using the example notebook](#using-the-example-notebook)
+    - [Install the requirements](#install-the-requirements)
+    - [From the terminal shell](#from-the-terminal-shell)
+  - [CNN Checklist](#cnn-checklist)
+
+## Data
+![Image Data](extras/cnn_data.png)
+
+The image contains eight channels (Transverse momentum, dz, Track Information, and ECAL and HCAL projection). The dataset additionally contains some basic information regarding the experimental setup ($i\phi$ and $i\theta$). 
+
 ## The baseline model
 
 The CNN baseline is contructed using a (pretrained) Resnet backbone with a regression head. 
 
 ## Results
+![CNN Results Graph](extras/cnn_results.png)
 
 The CNN baseline with Resnet50 backbone, positional encoding and output scaling performs the best. Other configurations perform either similarly or far worse.  
-
 
 ## How to run?
 
@@ -19,13 +38,16 @@ The provided `example.ipynb` notebook handles all the aspect of training/testing
 
 ### Install the requirements
 
-The requirements for the project can be install as:
-`pip install -r requirements.txt`
+The requirements for the project can be installed by:
+
+```bash
+pip install -r requirements.txt
+```
 
 ### From the terminal shell
 
 The `main.py` file implements the training/testing loop. A simple run with default values can be done using 
-```
+```bash
 python main.py
 ```
 Arguments can also be provided to change the training/testing:
@@ -96,3 +118,10 @@ optional arguments:
   --min_lr MIN_LR       Minimum LR for the cosine annealing LR scheduler
   --T_0 T_0             Number of iterations for the first restart
 ```
+
+## CNN Checklist
+- [x] Basic data loaders
+- [x] Basic logging on weights and biases
+- [x] Code for obtaining channel avg and std for the image dataset
+- [x] Code for the CNN baseline
+- [x] Basic augmentations and Loss Function testing for CNNs
