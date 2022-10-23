@@ -1,8 +1,28 @@
-## CNN Baseline Model
+# CNN Baseline Model
 
 This folder contains all the required files to train/test a baseline CNN model.
 
-### How to run?
+## The baseline model
+
+The CNN baseline is contructed using a (pretrained) Resnet backbone with a regression head. 
+
+## Results
+
+The CNN baseline with Resnet50 backbone, positional encoding and output scaling performs the best. Other configurations perform either similarly or far worse.  
+
+
+## How to run?
+
+### Using the example notebook
+
+The provided `example.ipynb` notebook handles all the aspect of training/testing - downloading the dataset, installing the requirements and running the training script.
+
+### Install the requirements
+
+The requirements for the project can be install as:
+`pip install -r requirements.txt`
+
+### From the terminal shell
 
 The `main.py` file implements the training/testing loop. A simple run with default values can be done using 
 ```
@@ -16,7 +36,9 @@ usage: main.py [-h] [--num_epochs NUM_EPOCHS] [--device {cpu,cuda}] [--name NAME
                [--pretrained] [--lr LR] [--lr_step LR_STEP] [--lr_gamma LR_GAMMA] [--criterion_type {mse,l2,l1,smoothl1}]
                [--criterion_beta CRITERION_BETA] [--use_pe] [--num_pe_scales NUM_PE_SCALES] [--use_zero_suppression]
                [--min_threshold MIN_THRESHOLD] [--output_mean_scaling] [--output_mean_value OUTPUT_MEAN_VALUE]
-               [--output_norm_scaling] [--output_norm_value OUTPUT_NORM_VALUE] [--model MODEL] [--debug]
+               [--output_norm_scaling] [--output_norm_value OUTPUT_NORM_VALUE]
+               [--model {resnet18,resnet34,resnet50,resnet101}] [--scale_histogram] [--plot] [--debug]
+               [--optim {adam,adamw,rmsprop,sgd}] [--sched_type {step,ca_wm}] [--min_lr MIN_LR] [--T_0 T_0]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -62,6 +84,15 @@ optional arguments:
                         Whether to divide the output by normalizing constant
   --output_norm_value OUTPUT_NORM_VALUE
                         The the normalizing constant to divide the output by
-  --model MODEL
+  --model {resnet18,resnet34,resnet50,resnet101}
+                        Which model to use for the CNN backbone
+  --scale_histogram     Whether to scale as histograms
+  --plot                Whether to scatter plot prediction vs ground truth
   --debug
+  --optim {adam,adamw,rmsprop,sgd}
+                        Which optimizer to use
+  --sched_type {step,ca_wm}
+                        Which type of scheduler to use
+  --min_lr MIN_LR       Minimum LR for the cosine annealing LR scheduler
+  --T_0 T_0             Number of iterations for the first restart
 ```

@@ -151,11 +151,11 @@ if __name__ == '__main__':
                         help='Whether to divide the output by normalizing constant')
     parser.add_argument('--output_norm_value', type=float, default=119.904,
                         help='The the normalizing constant to divide the output by')
-    parser.add_argument('--model', type=str, default='resnet')
+    parser.add_argument('--model', type=str, default='resnet50', choices=['resnet18', 'resnet34', 'resnet50', 'resnet101'], help='Which model to use for the CNN backbone')
     parser.add_argument('--scale_histogram', action='store_true', help='Whether to scale as histograms')
     parser.add_argument('--plot', action='store_true', help='Whether to scatter plot prediction vs ground truth')
     parser.add_argument('--debug', action='store_true')
-    parser.add_argument('--optim', type=str, default='adam', choices=['adam', 'adamw', 'rmsprop', 'sgd'])
+    parser.add_argument('--optim', type=str, default='adam', choices=['adam', 'adamw', 'rmsprop', 'sgd'], help='Which optimizer to use')
     parser.add_argument('--sched_type', type=str, default='step', choices=['step', 'ca_wm'], help='Which type of scheduler to use')
     parser.add_argument('--min_lr', type=float, default=1e-7, help='Minimum LR for the cosine annealing LR scheduler')
     parser.add_argument('--T_0', type=int, default=5, help='Number of iterations for the first restart')

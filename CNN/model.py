@@ -99,8 +99,20 @@ def get_model(device, model, pretrained=False, use_pe=False, pe_scales=0):
     #     img_size=125
     # )
 
+    if model == 'resnet50':
+        model_class = torchvision.models.resnet50
+    elif model == 'resnet18':
+        model_class = torchvision.models.resnet18
+    elif model == 'resnet34':
+        model_class = torchvision.models.resnet34
+    elif model == 'resnet101':
+        model_class = torchvision.models.resnet101
+    else:
+        raise NotImplementedError()
+
+
     regress_model = RegressModel(
-        model=torchvision.models.resnet50(pretrained=pretrained),
+        model=model_class(pretrained=pretrained),
         in_features=None,
         use_pe=use_pe,
         pe_scales=pe_scales
