@@ -33,6 +33,18 @@ class DGCNN(torch.nn.Module):
         DGCNN network that is similar to the ParticleNet architecture
     '''
     def __init__(self, args, x_size, pos_size, edge_feat='none', k=7, use_pe=False, pe_scales=0):
+        '''
+            Init fn. of DGCNN backbone
+            Args:
+                args: ArgumentParser parsed args
+                x_size: Input dimension of data.x
+                pos_size: Input dimension of data.pos
+                edge_feat: Which edge feature to use 
+                k: K from K-NN of the data to form the graph
+                use_pe: Whether to use positional encoding
+                pe_scales: The number of scales for positional encoding
+        '''
+
         super().__init__()
         self.args = args
         self.dynamic_conv_1 = DynamicEdgeConvPN(
@@ -75,6 +87,17 @@ class DGCNN(torch.nn.Module):
 
 class GatedGCNNet(torch.nn.Module):
     def __init__(self, args, x_size, pos_size, edge_feat='none', k=7, use_pe=False, pe_scales=0):
+        '''
+            Init fn. of GatedGCN backbone
+            Args:
+                args: ArgumentParser parsed args
+                x_size: Input dimension of data.x
+                pos_size: Input dimension of data.pos
+                edge_feat: Which edge feature to use 
+                k: K from K-NN of the data to form the graph
+                use_pe: Whether to use positional encoding
+                pe_scales: The number of scales for positional encoding
+        '''
         super().__init__()
         self.k = k
         self.use_pe = use_pe
@@ -108,7 +131,14 @@ class GatedGCNNet(torch.nn.Module):
 
 
 def compute_degree(train_dset, k=7, device='cpu', force_recompute=False):
-    
+    '''
+        Computes the degree of the data given a (batched) iterator over the dataset.
+        Args:
+            train_dset: Iterator over the training dataset
+            k: k from K-NN used for forming the graph from the data
+            device: Device to return the tensor on
+            force_recompute: Whether to recompute the degrees if a saved copy is available 
+    '''    
     # Code from the PyG repository for computing for random graphs. Here graphs are constructed as k-nn
     # max_degree = -1
     # for data in tqdm(train_dset, desc='Max Degree'):
@@ -132,6 +162,19 @@ def compute_degree(train_dset, k=7, device='cpu', force_recompute=False):
 
 class PNANet(torch.nn.Module):
     def __init__(self, args, x_size, pos_size, deg, edge_feat='none', k=7, use_pe=False, pe_scales=0):
+        '''
+            Init fn. of PNANet backbone
+            Args:
+                args: ArgumentParser parsed args
+                x_size: Input dimension of data.x
+                pos_size: Input dimension of data.pos
+                deg: The degree of the nodes of the graph
+                edge_feat: Which edge feature to use 
+                k: K from K-NN of the data to form the graph
+                use_pe: Whether to use positional encoding
+                pe_scales: The number of scales for positional encoding
+        '''
+
         super().__init__()
         self.k = k
         self.edge_feat = edge_feat
@@ -201,6 +244,17 @@ class SimpleGAT(torch.nn.Module):
         Simple 2 layered GAT GNN
     '''
     def __init__(self, args, x_size, pos_size, edge_feat='none', k=7, use_pe=False, pe_scales=0):
+        '''
+            Init fn. of SimpleGAT backbone
+            Args:
+                args: ArgumentParser parsed args
+                x_size: Input dimension of data.x
+                pos_size: Input dimension of data.pos
+                edge_feat: Which edge feature to use 
+                k: K from K-NN of the data to form the graph
+                use_pe: Whether to use positional encoding
+                pe_scales: The number of scales for positional encoding
+        '''
         super().__init__()
         self.k = k
         self.edge_feat = edge_feat
@@ -303,6 +357,20 @@ class GPSModel(torch.nn.Module):
     '''
 
     def __init__(self, args, x_size, pos_size, dim_h, k=7, deg=None, use_pe=False, pe_scales=10, predict_bins=False, num_bins=10):
+        '''
+            Init fn. of GPSModel
+            Args:
+                args: ArgumentParser parsed args
+                x_size: Input dimension of data.x
+                pos_size: Input dimension of data.pos
+                dim_h: Output dimension 
+                k: K from K-NN of the data to form the graph
+                deg: Degree of nodes of the data (Used for PNAConv)
+                use_pe: Whether to use positional encoding
+                pe_scales: The number of scales for positional encoding
+                predict_bins: Whether to add the additional task of predicting the bins
+                num_bins: Number of bins to be predicted in the additional task
+        '''
         super().__init__()
 
         self.num_gps_layers = args.num_gps_layers

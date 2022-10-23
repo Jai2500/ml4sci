@@ -9,6 +9,22 @@ class GPSLayer(torch.nn.Module):
         Local MPNN + full graph attention x-former layer
     '''
     def __init__(self, args, input_size, dim_h, local_mpnn_type, global_model_type, num_heads, layer_norm=False, batch_norm=True, dropout=0., attn_dropout=0., deg=None, k=7):
+        '''
+            Init fn. of GPSLayer
+            Args:
+                args: ArgumentParser parsed args
+                input_size: Input dimension of the data to be operated on
+                dim_h: Output dimension 
+                local_mpnn_type: Type of the GNN Layer to use for local Neural Network
+                global_model_type: Type of Self Attention (Transformer) model for global Neural Netwokr
+                num_heads: Number of heads in the MSA block
+                layer_norm: Whether to perform layernorm 
+                batch_norm: Whether to perform batchnorm
+                dropout: Dropout probability on the output vector
+                attn_dropout: Dropout probability on the self attention matrix
+                deg: Degree of nodes of the data (Used for PNAConv)
+                k: K from K-NN of the data to form the graph
+        '''
         super().__init__()
         
         self.dim_h = dim_h
